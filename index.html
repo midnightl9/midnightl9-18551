@@ -3,8 +3,46 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Boss Timers – Gold Card Style</title>
+<title>Midnight Boss Timer</title>
 <style>
+  /* === 50% smaller cards === */
+  .card{
+  padding:8px 6px;
+  border-radius:10px;
+}
+
+.title{ font-size:13px; margin-bottom:6px; }
+.time{ font-size:18px; margin:2px 0 4px; }
+.next{ font-size:9px; margin-bottom:6px; }
+
+.row{ gap:6px; margin:6px 0 2px; }
+
+.pill{
+  width:120px;
+  height:26px;
+  font-size:10px;
+}
+
+.btn-gold{
+  width:120px;
+  height:26px;
+  font-size:10px;
+}
+
+.muted{
+  font-size:9px;
+}
+
+
+
+/* Fix grid spacing after scaling */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));
+  gap:6px; /* very tight spacing */
+}
+
+
   :root{
     --bg:#0b0b0d;
     --panel:#111113;
@@ -15,6 +53,7 @@
     --btn-bg:#18181b;
     --red:#ff4c4c;
   }
+
 
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial}
@@ -109,6 +148,7 @@
       <input id="m-name" class="input" placeholder="Boss Name" />
       <input id="m-hours" class="input" type="number" min="1" placeholder="Hours" />
       <button id="m-add" class="btn">Add Manual Timer</button>
+      <button id="sort-toggle" class="btn">Sort: ON</button>
     </div>
     <div id="manual-grid" class="grid"></div>
   </div>
@@ -126,42 +166,8 @@
     <div id="sched-grid" class="grid"></div>
   </div>
 
-<!-- Add these in <head> (or just above your module script) -->
-<script type="module" src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js"></script>
-<script type="module" src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js"></script>
-<script type="module" src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js"></script>
-
-<!-- Replace your old <script>…</script> with this: -->
-<script type="module">
-/* ============================================================
-   Firebase init
-============================================================ */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
-
-/* ---- 1) Paste your Firebase config here ---- */
-const firebaseConfig = {
-  apiKey: "AIzaSyARHmnY9U1AquV7d0cmZ-4HcMwcCMnV7Uo",
-  authDomain: "midnightbosstimer.firebaseapp.com",
-  projectId: "midnightbosstimer",
-  storageBucket: "midnightbosstimer.firebasestorage.app",
-  messagingSenderId: "61416631412",
-  appId: "1:61416631412:web:642420966b3c9235eb7521"
-};
-/* -------------------------------------------- */
-
-const app = initializeApp(firebaseConfig);
-const db  = getFirestore(app);
-const auth = getAuth(app);
-await signInAnonymously(auth);
-
-/* Room/space key so you can have multiple shared boards */
-const SPACE_ID = "default";
-
-/* ============================================================
-   Helpers
-============================================================ */
+<script>
+/* ========================= Utilities ========================= */
 const pad2 = n => n.toString().padStart(2,"0");
 const fmtHMS = ms => {
   const s = Math.max(0, Math.floor(ms/1000));
@@ -170,262 +176,294 @@ const fmtHMS = ms => {
   const sec = s%60;
   return `${pad2(h)}:${pad2(m)}:${pad2(sec)}`;
 };
-const fmtTime = d => d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+const fmtTime = d => d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}); // “10:49”
+const fmtRespawn = ms => {
+  const d = new Date(ms);
+  return fmtTime(d);
 
-/* Convert Firestore Timestamp/ms to ms */
-const toMs = v => (v instanceof Timestamp) ? v.toMillis() : Number(v);
+};
+/* ====================== Auto Sort Helpers ====================== */
+function reorderChildrenByKey(gridEl, keyArr){
+  // keyArr is an array of card elements in the correct order
+  const frag = document.createDocumentFragment();
+  keyArr.forEach(el => frag.appendChild(el));
+  gridEl.appendChild(frag);
+}
 
-/* DOM refs (your existing markup) */
-const mGrid = document.getElementById("manual-grid");
-const sGrid = document.getElementById("sched-grid");
-
-/* ============================================================
-   DEFAULT SEED (only used once when creating docs)
-============================================================ */
-const DEFAULT_MANUAL = [
-  ["Venatus",10],["Viorent",10],["Ego",21],["Levera",24],["Araneo",24],
+/* ====================== Manual Timers ======================= */
+const M_KEY="manual_gold_style_v1";
+const DEFAULT_MANUAL=[
+  ["Venatus",10],["Viorent",10],["Ego",21],["Livera",24],["Araneo",24],
   ["Undomiel",24],["Lady Dalia",18],["General Aquleus",29],["Amentis",29],["Baron Braudmore",32],
   ["Wannitas",48],["Metus",48],["Duplican",48],["Shuliar",35],["Gareth",32],
-  ["Titore",37],["Larba",35],["Catena",35],
-];
-const DEFAULT_SCHED = [
-  {name:"Climantis", sched:"mon 11:30, thu 19:00"},
-  {name:"Saphirus",  sched:"sun 17:00, tue 11:30"},
-  {name:"Neutro",    sched:"tue 19:00, thu 11:30"},
-  {name:"Thymele",   sched:"mon 19:00, wed 11:30"},
-  {name:"Milavy",    sched:"sat 15:00"},
-  {name:"Ringor",    sched:"sat 17:00"},
-  {name:"Roderick",  sched:"fri 19:00"},
-  {name:"Auraq",     sched:"sun 21:00, wed 21:00"},
+  ["Titore",37],["Larba",35],["Catena",35]
 ];
 
-/* Slug for doc ids */
-const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+function mLoad(){
+  const raw = localStorage.getItem(M_KEY);
+  if(!raw){
+    const now = Date.now();
+    return DEFAULT_MANUAL.map(([name,h])=>({name,hours:h,end:now+h*3600*1000,last:"—"}));
+  }
+  try { return JSON.parse(raw); } catch { return []; }
+}
+function mSave(){ localStorage.setItem(M_KEY, JSON.stringify(M_STATE)); }
+let M_STATE = mLoad();
 
-/* ============================================================
-   MANUAL TIMERS — Firestore
-============================================================ */
-const manualCol = collection(db, "spaces", SPACE_ID, "manualTimers");
+const mGrid = document.getElementById("manual-grid");
+let _mLastOrder = "";
 
-/* Render utilities (match your card HTML structure) */
-const renderManualCard = (t) => `
-  <div class="card" id="m-${t.id}">
-    <h3 class="title">${t.name}</h3>
-    <div class="time" data-mi="${t.id}">--:--:--</div>
-    <div class="next">NEXT: <strong data-next="${t.id}">--:--</strong></div>
-
-    <div class="row">
-      <input class="pill" type="time" data-mtime="${t.id}" />
-      <input class="pill" type="date" data-mdate="${t.id}" />
-    </div>
-
-    <div class="row" style="gap:8px;">
-      <button class="btn-gold" data-killed="${t.id}">Killed Now</button>
-      <button class="btn-gold" data-setkill="${t.id}">Set Manual Kill Time</button>
-      <button class="btn-gold" data-setnext="${t.id}">Set Next Spawn</button>
-    </div>
-
-    <div class="muted" style="margin-top:10px">Last restart: <span data-last="${t.id}">—</span></div>
-  </div>`;
-
-function wireManualButtons() {
-  mGrid.addEventListener("click", async (e) => {
-    const killedId = e.target.getAttribute("data-killed");
-    const setKillId = e.target.getAttribute("data-setkill");
-    const setNextId = e.target.getAttribute("data-setnext");
-    if (killedId) {
-      const docRef = doc(db, "spaces", SPACE_ID, "manualTimers", killedId);
-      const snap = await getDoc(docRef);
-      if (!snap.exists()) return;
-      const { hours } = snap.data();
-      const end = Date.now() + hours*3600*1000;
-      await setDoc(docRef, { end, lastRestart: serverTimestamp() }, { merge:true });
-    }
-    if (setKillId) {
-      const tEl = document.querySelector(`[data-mtime="${setKillId}"]`);
-      const dEl = document.querySelector(`[data-mdate="${setKillId}"]`);
-      if (!tEl.value || !dEl.value) return alert("Pick both time and date.");
-      const kill = new Date(`${dEl.value}T${tEl.value}`).getTime();
-      const docRef = doc(db, "spaces", SPACE_ID, "manualTimers", setKillId);
-      const snap = await getDoc(docRef);
-      if (!snap.exists()) return;
-      const { hours } = snap.data();
-      await setDoc(docRef, { end: kill + hours*3600*1000, lastRestart: serverTimestamp() }, { merge:true });
-    }
-    if (setNextId) {
-      const tEl = document.querySelector(`[data-mtime="${setNextId}"]`);
-      const dEl = document.querySelector(`[data-mdate="${setNextId}"]`);
-      if (!tEl.value || !dEl.value) return alert("Pick both time and date.");
-      const next = new Date(`${dEl.value}T${tEl.value}`).getTime();
-      const docRef = doc(db, "spaces", SPACE_ID, "manualTimers", setNextId);
-      await setDoc(docRef, { end: next, lastRestart: serverTimestamp() }, { merge:true });
-    }
-  }, { passive:true });
+function mRestart(i){
+  const it = M_STATE[i];
+  it.end = Date.now() + it.hours*3600*1000;
+  it.last = new Date().toLocaleString();
+  mSave(); mRender();
+  
+}
+function mSetKill(i){
+  const card = document.querySelector(`[data-mcard="${i}"]`);
+  const t = card.querySelector('[data-mtime]').value;
+  const d = card.querySelector('[data-mdate]').value;
+  if(!t || !d) return alert("Pick both time and date.");
+  const kill = new Date(`${d}T${t}`);
+  if(isNaN(kill)) return alert("Invalid time/date.");
+  M_STATE[i].end = kill.getTime() + M_STATE[i].hours*3600*1000;
+  M_STATE[i].last = new Date().toLocaleString();
+  mSave(); mRender();
+}
+function mSetNext(i){
+  const card = document.querySelector(`[data-mcard="${i}"]`);
+  const t = card.querySelector('[data-mtime]').value;
+  const d = card.querySelector('[data-mdate]').value;
+  if(!t || !d) return alert("Pick both time and date.");
+  const dt = new Date(`${d}T${t}`);
+  if(isNaN(dt)) return alert("Invalid time/date.");
+  M_STATE[i].end = dt.getTime();
+  M_STATE[i].last = new Date().toLocaleString();
+  mSave(); mRender();
 }
 
-/* Initial seed (first time only) & live subscription */
-async function ensureManualSeed() {
-  // Create docs if they don't exist yet
-  await Promise.all(DEFAULT_MANUAL.map(async ([name, hours]) => {
-    const id = slug(name);
-    const ref = doc(db, "spaces", SPACE_ID, "manualTimers", id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-      await setDoc(ref, {
-        id, name, hours,
-        end: Date.now() + hours*3600*1000,
-        lastRestart: serverTimestamp(),
-      });
-    }
-  }));
+function mCardHTML(it,i){
+  const left = it.end - Date.now();
+  return `
+    <div class="card" data-mcard="${i}">
+      <h3 class="title">${it.name}</h3>
+      <div class="time" data-mi="${i}">${fmtHMS(left)}</div>
+      <div class="next">NEXT: <strong>${fmtRespawn(it.end)}</strong></div>
+
+      <div class="row">
+        <input class="pill" type="time" data-mtime />
+        <input class="pill" type="date" data-mdate />
+      </div>
+
+      <div class="row" style="gap:8px;">
+        <button class="btn-gold" onclick="mRestart(${i})">Killed Now</button>
+        <button class="btn-gold" onclick="mSetKill(${i})">Set Manual Kill Time</button>
+        <button class="btn-gold" onclick="mSetNext(${i})">Set Next Spawn</button>
+      </div>
+
+      <div class="muted" style="margin-top:10px">Last restart: ${it.last}</div>
+    </div>
+  `;
 }
-await ensureManualSeed();
+function mRender(){ mGrid.innerHTML = M_STATE.map(mCardHTML).join(""); }
+mRender();
 
-onSnapshot(manualCol, (qs) => {
-  const list = [];
-  qs.forEach(d => list.push(d.data()));
-  // render
-  mGrid.innerHTML = list
-    .sort((a,b)=>a.name.localeCompare(b.name))
-    .map(renderManualCard)
-    .join("");
-  wireManualButtons();
-});
-
-/* Tick updater for manual */
-setInterval(async ()=> {
-  const qs = await (await import("https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js")).getDocs(manualCol);
-  const docs = qs.docs.map(d=>d.data());
+function mAutoSort(){
   const now = Date.now();
-  docs.forEach(t => {
-    const msLeft = toMs(t.end) - now;
-    const timeEl = document.querySelector(`[data-mi="${t.id}"]`);
-    const nextEl = document.querySelector(`[data-next="${t.id}"]`);
-    const lastEl = document.querySelector(`[data-last="${t.id}"]`);
-    const card = document.getElementById(`m-${t.id}`);
-    if (!timeEl || !card) return;
-    timeEl.textContent = fmtHMS(msLeft);
-    nextEl && (nextEl.textContent = fmtTime(new Date(toMs(t.end))));
-    // style: <1h red, <30m pulse
-    card.classList.toggle("lowtime", msLeft <= 3600000);
-    card.classList.toggle("urgent",  msLeft <= 1800000);
-    if (t.lastRestart) {
-      const dt = (t.lastRestart instanceof Timestamp) ? t.lastRestart.toDate() : new Date(t.lastRestart);
-      lastEl && (lastEl.textContent = dt.toLocaleString());
-    }
+
+  // Build desired order based on remaining time
+  const cards = Array.from(mGrid.children);
+  const sorted = cards
+    .map(card => {
+      const i = +card.dataset.mcard;
+      return { card, left: (M_STATE[i]?.end ?? now) - now };
+    })
+    .sort((a,b) => a.left - b.left)
+    .map(x => x.card);
+
+  const orderKey = sorted.map(c => c.dataset.mcard).join(",");
+  if(orderKey === _mLastOrder) return; // no change, skip DOM moves
+  _mLastOrder = orderKey;
+
+  reorderChildrenByKey(mGrid, sorted);
+}
+
+
+/* live tick + alerts */
+setInterval(()=>{
+  const now = Date.now();
+  document.querySelectorAll('[data-mi]').forEach(el=>{
+    const i = +el.dataset.mi;
+    const left = M_STATE[i].end - now;
+    el.textContent = fmtHMS(left);
+    const card = el.closest('.card');
+    // alerts: <1h red, <30m pulse
+    if(left <= 3600000) card.classList.add('lowtime'); else card.classList.remove('lowtime');
+    if(left <= 1800000) card.classList.add('urgent'); else card.classList.remove('urgent');
+    // update NEXT text
+    const nextEl = card.querySelector('.next strong');
+    if(nextEl) nextEl.textContent = fmtRespawn(M_STATE[i].end);
   });
-}, 1000);
 
-/* ============================================================
-   SCHEDULED TIMERS — Firestore
-============================================================ */
-const schedCol = collection(db, "spaces", SPACE_ID, "scheduledTimers");
+  // ✅ auto-sort by lowest remaining time
+  if (SORT_ENABLED) mAutoSort();
+},1000);
 
-/* parse schedules (same as before) */
+
+/* ===================== Scheduled Timers ===================== */
+const S_KEY="scheduled_gold_style_v1";
 const DAY_MAP={sun:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6};
+const DAY_NAMES=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const to12=(h,m)=>{const am=h<12;const hh=h%12===0?12:h%12;return`${hh}:${pad2(m)} ${am?'AM':'PM'}`};
 function parseSchedule(s){
   if(!s) return [];
   return s.split(",").map(x=>x.trim()).filter(Boolean).map(p=>{
     const m=p.match(/^([a-z]{3})\s+(\d{1,2}):(\d{2})(?:\s*(am|pm))?$/i);
     if(!m) return null;
     const day=DAY_MAP[m[1].toLowerCase()];
-    let h=+m[2], min=+m[3]; const ap=(m[4]||"").toLowerCase();
+    let h=parseInt(m[2],10), minute=parseInt(m[3],10);
+    const ap=(m[4]||"").toLowerCase();
     if(ap==="pm"&&h!==12)h+=12; if(ap==="am"&&h===12)h=0;
-    if(day==null||h>23||min>59) return null;
-    return {day, hour:h, minute:min};
+    if(day==null||h>23||minute>59) return null;
+    return {day,hour:h,minute};
   }).filter(Boolean);
 }
-function nextFromSchedule(entries, now=new Date()){
-  if(!entries.length) return null;
-  const cd=now.getDay();
+function nextFromSchedule(list, now=new Date()){
+  if(!list.length) return null;
   let best=null;
-  for(const e of entries){
-    const diff=(e.day-cd+7)%7;
-    const cand=new Date(now.getFullYear(), now.getMonth(), now.getDate(), e.hour, e.minute, 0, 0);
+  for(const e of list){
+    const cand=new Date(now);
+    cand.setHours(e.hour,e.minute,0,0);
+    const diff=(e.day-now.getDay()+7)%7;
     cand.setDate(cand.getDate()+diff);
     if(cand<=now) cand.setDate(cand.getDate()+7);
+    if(!best||cand<cand) best=cand;
     if(!best || cand < best) best = cand;
   }
   return best;
 }
+const DEFAULT_SCHED=[
+  {name:"Climantis", scheduleStr:"mon 11:30, thu 19:00"},
+  {name:"Saphirus",  scheduleStr:"sun 17:00, tue 11:30"},
+  {name:"Neutro",    scheduleStr:"tue 19:00, thu 11:30"},
+  {name:"Thymele",   scheduleStr:"mon 19:00, wed 11:30"},
+  {name:"Milavy",    scheduleStr:"sat 15:00"},
+  {name:"Ringor",    scheduleStr:"sat 17:00"},
+  {name:"Roderick",  scheduleStr:"fri 19:00"},
+  {name:"Auraq",     scheduleStr:"sun 21:00, wed 21:00"},
+];
 
-const renderSchedCard = (t) => `
-  <div class="card" id="s-${t.id}">
-    <h3 class="title">${t.name}</h3>
-    <div class="time" data-si="${t.id}">--:--:--</div>
-    <div class="next">NEXT: <strong data-snext="${t.id}">--:--</strong></div>
+function sLoad(){
+  const raw=localStorage.getItem(S_KEY);
+  if(!raw) return DEFAULT_SCHED.map(o=>({...o, schedule:parseSchedule(o.scheduleStr), next:null}));
+  try{
+    const arr=JSON.parse(raw);
+    return arr.map(o=>({...o, schedule:parseSchedule(o.scheduleStr)}));
+  }catch{return []}
+}
+function sSave(){ localStorage.setItem(S_KEY, JSON.stringify(S_STATE.map(({name,scheduleStr,nextOverride})=>({name,scheduleStr,nextOverride})))) }
+let S_STATE = sLoad();
 
-    <div class="row">
-      <input class="pill" type="time" data-stime="${t.id}" />
-      <input class="pill" type="date" data-sdate="${t.id}" />
-    </div>
+const sGrid = document.getElementById("sched-grid");
+function nextFor(i, now=new Date()){
+  const n = S_STATE[i].nextOverride ? new Date(S_STATE[i].nextOverride) : nextFromSchedule(S_STATE[i].schedule, now);
+  return n;
+}
+let _sLastOrder = "";
 
-    <div class="row" style="gap:8px;">
-      <button class="btn-gold" data-override="${t.id}">Set Next Spawn</button>
-    </div>
-
-    <div class="muted" style="margin-top:10px">Schedule: ${t.scheduleStr}</div>
-  </div>`;
-
-function wireSchedButtons() {
-  sGrid.addEventListener("click", async (e)=>{
-    const id = e.target.getAttribute("data-override");
-    if(!id) return;
-    const tEl = document.querySelector(`[data-stime="${id}"]`);
-    const dEl = document.querySelector(`[data-sdate="${id}"]`);
-    if(!tEl.value || !dEl.value) return alert("Pick both time and date.");
-    const dt = new Date(`${dEl.value}T${tEl.value}`).getTime();
-    const ref = doc(db, "spaces", SPACE_ID, "scheduledTimers", id);
-    await setDoc(ref, { nextOverride: dt }, { merge:true });
-  }, { passive:true });
+function sSetNext(i){
+  const card = document.querySelector(`[data-scard="${i}"]`);
+  const t = card.querySelector('[data-stime]').value;
+  const d = card.querySelector('[data-sdate]').value;
+  if(!t || !d) return alert("Pick both time and date.");
+  const dt = new Date(`${d}T${t}`);
+  if(isNaN(dt)) return alert("Invalid time/date.");
+  S_STATE[i].nextOverride = dt.toISOString();
+  sSave(); sRender();
 }
 
-async function ensureSchedSeed() {
-  await Promise.all(DEFAULT_SCHED.map(async ({name, sched})=>{
-    const id = slug(name);
-    const ref = doc(db, "spaces", SPACE_ID, "scheduledTimers", id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-      await setDoc(ref, {
-        id, name, scheduleStr: sched,
-        schedule: sched,   // store raw string for display
-        nextOverride: null
-      });
-    }
-  }));
+function sCardHTML(it,i){
+  const nxt = nextFor(i, new Date()) || new Date(Date.now()+3600*1000);
+  const left = nxt - new Date();
+  return `
+    <div class="card" data-scard="${i}">
+      <h3 class="title">${it.name}</h3>
+      <div class="time" data-si="${i}">${fmtHMS(left)}</div>
+      <div class="next">NEXT: <strong>${fmtTime(nxt)}</strong></div>
+
+      <div class="row">
+        <input class="pill" type="time" data-stime />
+        <input class="pill" type="date" data-sdate />
+      </div>
+
+      <div class="row" style="gap:8px;">
+        <button class="btn-gold" onclick="sSetNext(${i})">Set Next Spawn</button>
+      </div>
+
+      <div class="muted" style="margin-top:10px">Schedule: ${it.scheduleStr}</div>
+    </div>
+  `;
 }
-await ensureSchedSeed();
+function sRender(){ sGrid.innerHTML = S_STATE.map(sCardHTML).join(""); }
+sRender();
 
-onSnapshot(schedCol, (qs)=>{
-  const list=[];
-  qs.forEach(d=>list.push(d.data()));
-  sGrid.innerHTML = list
-    .sort((a,b)=>a.name.localeCompare(b.name))
-    .map(renderSchedCard)
-    .join("");
-  wireSchedButtons();
-});
-
-/* Tick updater for scheduled */
-setInterval(async ()=>{
-  const qs = await (await import("https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js")).getDocs(schedCol);
-  const docs = qs.docs.map(d=>d.data());
+function sAutoSort(){
   const now = new Date();
-  docs.forEach(t=>{
-    const entries = parseSchedule(t.scheduleStr);
-    const next = t.nextOverride ? new Date(toMs(t.nextOverride)) : (nextFromSchedule(entries, now) || new Date(now.getTime()+3600*1000));
-    const delta = next - now;
-    const timeEl = document.querySelector(`[data-si="${t.id}"]`);
-    const nextEl = document.querySelector(`[data-snext="${t.id}"]`);
-    const card = document.getElementById(`s-${t.id}`);
-    if(timeEl){
-      timeEl.textContent = fmtHMS(delta);
-      nextEl && (nextEl.textContent = fmtTime(next));
-      card && card.classList.toggle("lowtime", delta <= 3600000);
-      card && card.classList.toggle("urgent",  delta <= 1800000);
+
+  const cards = Array.from(sGrid.children);
+  const sorted = cards
+    .map(card => {
+      const i = +card.dataset.scard;
+      const nxt = nextFor(i, now) || new Date(now.getTime() + 3600000);
+      return { card, left: nxt - now };
+    })
+    .sort((a,b) => a.left - b.left)
+    .map(x => x.card);
+
+  const orderKey = sorted.map(c => c.dataset.scard).join(",");
+  if(orderKey === _sLastOrder) return;
+  _sLastOrder = orderKey;
+
+  reorderChildrenByKey(sGrid, sorted);
+}
+
+
+setInterval(()=>{
+  const now = new Date();
+  document.querySelectorAll('[data-si]').forEach(el=>{
+    const i = +el.dataset.si;
+    const nxt = nextFor(i, now) || new Date(now.getTime()+3600*1000);
+    const delta = nxt - now;
+    el.textContent = fmtHMS(delta);
+    const card = el.closest('.card');
+    if(card){
+      if(delta <= 3600000) card.classList.add('lowtime'); else card.classList.remove('lowtime');
+      if(delta <= 1800000) card.classList.add('urgent'); else card.classList.remove('urgent');
+      const nextEl = card.querySelector('.next strong');
+      if(nextEl) nextEl.textContent = fmtTime(nxt);
     }
   });
-}, 1000);
+},1000);
+/* ====================== Sort Toggle ====================== */
+let SORT_ENABLED = true;
+
+const sortBtn = document.getElementById("sort-toggle");
+function updateSortBtn(){
+  sortBtn.textContent = `Sort: ${SORT_ENABLED ? "ON" : "OFF"}`;
+}
+sortBtn.addEventListener("click", () => {
+  SORT_ENABLED = !SORT_ENABLED;
+  updateSortBtn();
+
+  // when turning ON, immediately sort once
+  if(SORT_ENABLED){
+    mAutoSort();
+    if (SORT_ENABLED) sAutoSort();
+  }
+});
+updateSortBtn();
+
 </script>
 </body>
 </html>
