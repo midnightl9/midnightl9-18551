@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Midnight Boss Timer</title>
+<title>Boss Timers – Gold Card Style</title>
 <style>
   /* === 50% smaller cards === */
   .card{
@@ -181,41 +181,9 @@ const fmtRespawn = ms => {
   const d = new Date(ms);
   return fmtTime(d);
 
-  <!-- Add these in <head> (or just above your module script) -->
-<script type="module" src="https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js"></script>
-<script type="module" src="https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js"></script>
-<script type="module" src="https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js"></script>
-
-<!-- Replace your old <script>…</script> with this: -->
-<script type="module">
-/* ============================================================
-   Firebase init
-============================================================ */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
-
-/* ---- 1) Paste your Firebase config here ---- */
-const firebaseConfig = {
-  apiKey: "AIzaSyARHmnY9U1AquV7d0cmZ-4HcMwcCMnV7Uo",
-  authDomain: "midnightbosstimer.firebaseapp.com",
-  projectId: "midnightbosstimer",
-  storageBucket: "midnightbosstimer.firebasestorage.app",
-  messagingSenderId: "61416631412",
-  appId: "1:61416631412:web:781884b33205039beb7521"
 };
-/* -------------------------------------------- */
-
-const app = initializeApp(firebaseConfig);
-const db  = getFirestore(app);
-const auth = getAuth(app);
-await signInAnonymously(auth);
-
-/* Room/space key so you can have multiple shared boards */
-const SPACE_ID = "default";
 
 
-};
 /* ====================== Auto Sort Helpers ====================== */
 function reorderChildrenByKey(gridEl, keyArr){
   // keyArr is an array of card elements in the correct order
@@ -496,6 +464,7 @@ sortBtn.addEventListener("click", () => {
     if (SORT_ENABLED) sAutoSort();
   }
 });
+
 updateSortBtn();
 
 </script>
