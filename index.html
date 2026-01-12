@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Midnight S7 Boss Timer – Gold Card Style</title>
+<title>Boss Timers – Gold Card Style</title>
 <style>
   :root{
     --bg:#0b0b0d;
@@ -30,81 +30,63 @@
   .btn{background:#27324a;border-color:#27324a;color:#fff;font-weight:600;cursor:pointer}
   .btn:hover{filter:brightness(1.05)}
 
-  .grid{
-  display:grid;
-  gap:10px;
-  grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
-}
-
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
 
   /* === Gold Card Look === */
   .card{
-  background:var(--panel);
-  border:2px solid var(--gold);
-  border-radius:10px;
-  padding:9px 8px;
-  box-shadow:0 0 0 1px rgba(212,166,63,.15), 0 0 14px rgba(255,207,102,.12);
-  transition:box-shadow .3s,border-color .3s,transform .2s;
-  text-align:center;
-}
-.card:hover{
-  transform: translateY(-1px);
-  box-shadow:0 0 0 1px rgba(212,166,63,.25), 0 0 18px rgba(255,207,102,.18);
-}
-
+    background:var(--panel);
+    border:2px solid var(--gold);
+    border-radius:14px;
+    padding:18px 16px;
+    box-shadow:0 0 0 1px rgba(212,166,63,.15), 0 0 20px rgba(255,207,102,.15);
+    transition:box-shadow .3s,border-color .3s,transform .2s;
+    text-align:center;
+  }
   .card:hover{ transform: translateY(-1px); box-shadow:0 0 0 1px rgba(212,166,63,.25), 0 0 28px rgba(255,207,102,.22); }
 
   .title{
-  margin:0 0 6px;
-  font-size:11px;
-  letter-spacing:.06em;
-  text-transform:uppercase;
-  color:#f2e6c9;
-}
-.time{
-  font-size:17px;
-  font-weight:800;
-  letter-spacing:.12em;
-  margin:2px 0 6px;
-  color:#ffffff;
-  transition:color .3s ease;
-}
-.next{
-  font-size:10px;
-  letter-spacing:.12em;
-  color:#d7d7db;
-  text-transform:uppercase;
-  margin-bottom:8px;
-}
-
+    margin:0 0 10px;
+    font-size:22px; letter-spacing:.06em; text-transform:uppercase;
+    color:#f2e6c9;
+  }
+  .time{
+    font-size:34px; font-weight:800; letter-spacing:.12em; margin:4px 0 8px;
+    color:#ffffff; transition:color .3s ease;
+  }
+  .next{
+    font-size:13px; letter-spacing:.15em; color:#d7d7db; text-transform:uppercase; margin-bottom:14px;
+  }
 
   /* Inputs like your screenshot */
-  .row{display:flex;flex-direction:column;gap:6px;align-items:center;margin:6px 0 2px}
+  .row{display:flex;flex-direction:column;gap:10px;align-items:center; margin:10px 0 4px}
+  .pill{
+    width:180px; height:40px;
+    border-radius:10px;
+    border:1.5px solid var(--gold);
+    background:transparent;
+    color:#e8e0cd;
+    text-align:center;
+    font-size:14px;
+    outline:none;
+  }
+  .pill::placeholder{color:#8f8f95}
+  .pill[type="time"]::-webkit-calendar-picker-indicator,
+  .pill[type="date"]::-webkit-calendar-picker-indicator{
+    filter: invert(0.8) sepia(0.4) saturate(4) hue-rotate(-20deg);
+  }
 
-.pill{
-  width:90px; height:20px;
-  border-radius:6px;
-  border:1.5px solid var(--gold);
-  background:transparent;
-  color:#e8e0cd;
-  text-align:center;
-  font-size:10px;
-  outline:none;
-}
+  .btn-gold{
+    min-width:180px;
+    height:40px;
+    border-radius:10px;
+    background:var(--btn-bg);
+    color:#f6e7bf;
+    border:1.5px solid var(--gold);
+    cursor:pointer; font-weight:700;
+  }
+  .btn-gold:hover{ box-shadow:0 0 16px rgba(255,207,102,.15); }
 
-.btn-gold{
-  min-width:90px;
-  height:22px;
-  border-radius:6px;
-  background:var(--btn-bg);
-  color:#f6e7bf;
-  border:1.5px solid var(--gold);
-  cursor:pointer;
-  font-weight:700;
-  font-size:10px;
-}
-
-.muted{color:var(--muted); font-size:10px}
+  .muted{color:var(--muted); font-size:12.5px}
 
   /* Alerts */
   .lowtime{ border-color:var(--red) !important; box-shadow:0 0 0 1px rgba(255,76,76,.25), 0 0 20px rgba(255,76,76,.35) !important; }
@@ -190,20 +172,6 @@ const fmtHMS = ms => {
 };
 const fmtTime = d => d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
 
-/* ============================================================
-   LIVE SORT HELPERS (lowest -> highest remaining)
-============================================================ */
-function reorderChildrenByMs(container, items) {
-  // items: [{ el, ms }]
-  items.sort((a,b) => a.ms - b.ms);
-  for (const it of items) container.appendChild(it.el);
-}
-
-function safeMs(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
-}
-
 /* Convert Firestore Timestamp/ms to ms */
 const toMs = v => (v instanceof Timestamp) ? v.toMillis() : Number(v);
 
@@ -215,7 +183,7 @@ const sGrid = document.getElementById("sched-grid");
    DEFAULT SEED (only used once when creating docs)
 ============================================================ */
 const DEFAULT_MANUAL = [
-  ["Venatus",10],["Viorent",10],["Ego",21],["Livera",24],["Araneo",24],
+  ["Venatus",10],["Viorent",10],["Ego",21],["Levera",24],["Araneo",24],
   ["Undomiel",24],["Lady Dalia",18],["General Aquleus",29],["Amentis",29],["Baron Braudmore",32],
   ["Wannitas",48],["Metus",48],["Duplican",48],["Shuliar",35],["Gareth",32],
   ["Titore",37],["Larba",35],["Catena",35],
@@ -318,7 +286,7 @@ onSnapshot(manualCol, (qs) => {
   qs.forEach(d => list.push(d.data()));
   // render
   mGrid.innerHTML = list
-    .sort((a,b) => (toMs(a.end) - Date.now()) - (toMs(b.end) - Date.now()))
+    .sort((a,b)=>a.name.localeCompare(b.name))
     .map(renderManualCard)
     .join("");
   wireManualButtons();
