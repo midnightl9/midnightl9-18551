@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Midnight S7 Boss Timer – Gold Card Style</title>
+<style>
+  :root{
+    --bg:#0b0b0d;
+    --panel:#111113;
+    --text:#f1f1f1;
+    --muted:#b9b9bd;
+    --gold:#d4a63f;          /* main gold */
+    --gold-2:#ffcf66;        /* lighter gold for glow */
+    --btn-bg:#18181b;
+    --red:#ff4c4c;
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial}
+  h1{margin:24px 20px 8px;font-size:28px}
+  .section{padding:0 20px 28px}
+
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 18px}
+  .input,.btn{
+    height:38px;border-radius:10px;border:1px solid rgba(255,255,255,.12);
+    background:#0f0f12;color:var(--text);padding:0 12px;outline:none
+  }
+  .input::placeholder{color:#8f8f95}
+  .btn{background:#27324a;border-color:#27324a;color:#fff;font-weight:600;cursor:pointer}
+  .btn:hover{filter:brightness(1.05)}
+
+  .grid{
+  display:grid;
+  gap:10px;
+  grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
+}
+
+
+  /* === Gold Card Look === */
+  .card{
+  background:var(--panel);
+  border:2px solid var(--gold);
+  border-radius:10px;
+  padding:9px 8px;
+  box-shadow:0 0 0 1px rgba(212,166,63,.15), 0 0 14px rgba(255,207,102,.12);
+  transition:box-shadow .3s,border-color .3s,transform .2s;
+  text-align:center;
+}
+.card:hover{
+  transform: translateY(-1px);
+  box-shadow:0 0 0 1px rgba(212,166,63,.25), 0 0 18px rgba(255,207,102,.18);
+}
+
+  .card:hover{ transform: translateY(-1px); box-shadow:0 0 0 1px rgba(212,166,63,.25), 0 0 28px rgba(255,207,102,.22); }
+
+  .title{
+  margin:0 0 6px;
+  font-size:11px;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:#f2e6c9;
+}
+.time{
+  font-size:17px;
+  font-weight:800;
+  letter-spacing:.12em;
+  margin:2px 0 6px;
+  color:#ffffff;
+  transition:color .3s ease;
+}
+.next{
+  font-size:10px;
+  letter-spacing:.12em;
+  color:#d7d7db;
+  text-transform:uppercase;
+  margin-bottom:8px;
+}
+
+
+  /* Inputs like your screenshot */
+  .row{display:flex;flex-direction:column;gap:6px;align-items:center;margin:6px 0 2px}
+
+.pill{
+  width:90px; height:20px;
+  border-radius:6px;
+  border:1.5px solid var(--gold);
+  background:transparent;
+  color:#e8e0cd;
+  text-align:center;
+  font-size:10px;
+  outline:none;
+}
+
+.btn-gold{
+  min-width:90px;
+  height:22px;
+  border-radius:6px;
+  background:var(--btn-bg);
+  color:#f6e7bf;
+  border:1.5px solid var(--gold);
+  cursor:pointer;
+  font-weight:700;
+  font-size:10px;
+}
+
+.muted{color:var(--muted); font-size:10px}
+
+  /* Alerts */
+  .lowtime{ border-color:var(--red) !important; box-shadow:0 0 0 1px rgba(255,76,76,.25), 0 0 20px rgba(255,76,76,.35) !important; }
+  .card.lowtime .time{ color:var(--red); }
+  @keyframes pulse {
+    0% { box-shadow:0 0 18px rgba(255,76,76,.35) }
+    50%{ box-shadow:0 0 28px rgba(255,76,76,.65) }
+    100%{ box-shadow:0 0 18px rgba(255,76,76,.35) }
+  }
+  .urgent{ animation: pulse 1.1s ease-in-out infinite; }
+  hr.sep{border:none;height:1px;background:linear-gradient(90deg,transparent,#34312a,transparent);margin:22px 0}
+</style>
+</head>
+<body>
+
+  <!-- ===================== Manual (Gold cards) ===================== -->
+  <div class="section">
+    <h1>Manual Boss Timers</h1>
+    <div class="toolbar">
+      <input id="m-name" class="input" placeholder="Boss Name" />
+      <input id="m-hours" class="input" type="number" min="1" placeholder="Hours" />
+      <button id="m-add" class="btn">Add Manual Timer</button>
+    </div>
+    <div id="manual-grid" class="grid"></div>
+  </div>
+
+  <hr class="sep" />
+
+  <!-- ==================== Scheduled (Gold cards) ==================== -->
+  <div class="section">
+    <h1>Scheduled Bosses</h1>
+    <div class="toolbar">
+      <input id="s-name" class="input" placeholder="Boss Name" />
+      <input id="s-sched" class="input" style="min-width:320px" placeholder="Schedule e.g. mon 12:30, tue 19:00" />
+      <button id="s-add" class="btn">Add Scheduled Boss</button>
+    </div>
+    <div id="sched-grid" class="grid"></div>
+  </div>
+
+<!-- Add these in <head> (or just above your module script) -->
+<script type="module" src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js"></script>
+<script type="module" src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js"></script>
+<script type="module" src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js"></script>
+
+<!-- Replace your old <script>…</script> with this: -->
+<script type="module">
+/* ============================================================
+   Firebase init
+============================================================ */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+
+/* ---- 1) Paste your Firebase config here ---- */
+const firebaseConfig = {
+  apiKey: "AIzaSyARHmnY9U1AquV7d0cmZ-4HcMwcCMnV7Uo",
+  authDomain: "midnightbosstimer.firebaseapp.com",
+  projectId: "midnightbosstimer",
+  storageBucket: "midnightbosstimer.firebasestorage.app",
+  messagingSenderId: "61416631412",
+  appId: "1:61416631412:web:642420966b3c9235eb7521"
+};
+/* -------------------------------------------- */
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+const auth = getAuth(app);
+await signInAnonymously(auth);
+
+/* Room/space key so you can have multiple shared boards */
+const SPACE_ID = "default";
+
+/* ============================================================
+   Helpers
+============================================================ */
+const pad2 = n => n.toString().padStart(2,"0");
+const fmtHMS = ms => {
+  const s = Math.max(0, Math.floor(ms/1000));
+  const h = Math.floor(s/3600);
+  const m = Math.floor((s%3600)/60);
+  const sec = s%60;
+  return `${pad2(h)}:${pad2(m)}:${pad2(sec)}`;
+};
+const fmtTime = d => d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+
+/* ============================================================
+   LIVE SORT HELPERS (lowest -> highest remaining)
+============================================================ */
+function reorderChildrenByMs(container, items) {
+  // items: [{ el, ms }]
+  items.sort((a,b) => a.ms - b.ms);
+  for (const it of items) container.appendChild(it.el);
+}
+
+function safeMs(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+}
+
+/* Convert Firestore Timestamp/ms to ms */
+const toMs = v => (v instanceof Timestamp) ? v.toMillis() : Number(v);
+
+/* DOM refs (your existing markup) */
+const mGrid = document.getElementById("manual-grid");
+const sGrid = document.getElementById("sched-grid");
+
+/* ============================================================
+   DEFAULT SEED (only used once when creating docs)
+============================================================ */
+const DEFAULT_MANUAL = [
+  ["Venatus",10],["Viorent",10],["Ego",21],["Livera",24],["Araneo",24],
+  ["Undomiel",24],["Lady Dalia",18],["General Aquleus",29],["Amentis",29],["Baron Braudmore",32],
+  ["Wannitas",48],["Metus",48],["Duplican",48],["Shuliar",35],["Gareth",32],
+  ["Titore",37],["Larba",35],["Catena",35],
+];
+const DEFAULT_SCHED = [
+  {name:"Climantis", sched:"mon 11:30, thu 19:00"},
+  {name:"Saphirus",  sched:"sun 17:00, tue 11:30"},
+  {name:"Neutro",    sched:"tue 19:00, thu 11:30"},
+  {name:"Thymele",   sched:"mon 19:00, wed 11:30"},
+  {name:"Milavy",    sched:"sat 15:00"},
+  {name:"Ringor",    sched:"sat 17:00"},
+  {name:"Roderick",  sched:"fri 19:00"},
+  {name:"Auraq",     sched:"sun 21:00, wed 21:00"},
+];
+
+/* Slug for doc ids */
+const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+
+/* ============================================================
+   MANUAL TIMERS — Firestore
+============================================================ */
+const manualCol = collection(db, "spaces", SPACE_ID, "manualTimers");
+
+/* Render utilities (match your card HTML structure) */
+const renderManualCard = (t) => `
+  <div class="card" id="m-${t.id}">
+    <h3 class="title">${t.name}</h3>
+    <div class="time" data-mi="${t.id}">--:--:--</div>
+    <div class="next">NEXT: <strong data-next="${t.id}">--:--</strong></div>
+
+    <div class="row">
+      <input class="pill" type="time" data-mtime="${t.id}" />
+      <input class="pill" type="date" data-mdate="${t.id}" />
+    </div>
+
+    <div class="row" style="gap:8px;">
+      <button class="btn-gold" data-killed="${t.id}">Killed Now</button>
+      <button class="btn-gold" data-setkill="${t.id}">Set Manual Kill Time</button>
+      <button class="btn-gold" data-setnext="${t.id}">Set Next Spawn</button>
+    </div>
+
+    <div class="muted" style="margin-top:10px">Last restart: <span data-last="${t.id}">—</span></div>
+  </div>`;
+
+function wireManualButtons() {
+  mGrid.addEventListener("click", async (e) => {
+    const killedId = e.target.getAttribute("data-killed");
+    const setKillId = e.target.getAttribute("data-setkill");
+    const setNextId = e.target.getAttribute("data-setnext");
+    if (killedId) {
+      const docRef = doc(db, "spaces", SPACE_ID, "manualTimers", killedId);
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) return;
+      const { hours } = snap.data();
+      const end = Date.now() + hours*3600*1000;
+      await setDoc(docRef, { end, lastRestart: serverTimestamp() }, { merge:true });
+    }
+    if (setKillId) {
+      const tEl = document.querySelector(`[data-mtime="${setKillId}"]`);
+      const dEl = document.querySelector(`[data-mdate="${setKillId}"]`);
+      if (!tEl.value || !dEl.value) return alert("Pick both time and date.");
+      const kill = new Date(`${dEl.value}T${tEl.value}`).getTime();
+      const docRef = doc(db, "spaces", SPACE_ID, "manualTimers", setKillId);
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) return;
+      const { hours } = snap.data();
+      await setDoc(docRef, { end: kill + hours*3600*1000, lastRestart: serverTimestamp() }, { merge:true });
+    }
+    if (setNextId) {
+      const tEl = document.querySelector(`[data-mtime="${setNextId}"]`);
+      const dEl = document.querySelector(`[data-mdate="${setNextId}"]`);
+      if (!tEl.value || !dEl.value) return alert("Pick both time and date.");
+      const next = new Date(`${dEl.value}T${tEl.value}`).getTime();
+      const docRef = doc(db, "spaces", SPACE_ID, "manualTimers", setNextId);
+      await setDoc(docRef, { end: next, lastRestart: serverTimestamp() }, { merge:true });
+    }
+  }, { passive:true });
+}
+
+/* Initial seed (first time only) & live subscription */
+async function ensureManualSeed() {
+  // Create docs if they don't exist yet
+  await Promise.all(DEFAULT_MANUAL.map(async ([name, hours]) => {
+    const id = slug(name);
+    const ref = doc(db, "spaces", SPACE_ID, "manualTimers", id);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      await setDoc(ref, {
+        id, name, hours,
+        end: Date.now() + hours*3600*1000,
+        lastRestart: serverTimestamp(),
+      });
+    }
+  }));
+}
+await ensureManualSeed();
+
+onSnapshot(manualCol, (qs) => {
+  const list = [];
+  qs.forEach(d => list.push(d.data()));
+  // render
+  mGrid.innerHTML = list
+    .sort((a,b) => (toMs(a.end) - Date.now()) - (toMs(b.end) - Date.now()))
+    .map(renderManualCard)
+    .join("");
+  wireManualButtons();
+});
+
+/* Tick updater for manual */
+setInterval(async ()=> {
+  const qs = await (await import("https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js")).getDocs(manualCol);
+  const docs = qs.docs.map(d=>d.data());
+  const now = Date.now();
+  docs.forEach(t => {
+    const msLeft = toMs(t.end) - now;
+    const timeEl = document.querySelector(`[data-mi="${t.id}"]`);
+    const nextEl = document.querySelector(`[data-next="${t.id}"]`);
+    const lastEl = document.querySelector(`[data-last="${t.id}"]`);
+    const card = document.getElementById(`m-${t.id}`);
+    if (!timeEl || !card) return;
+    timeEl.textContent = fmtHMS(msLeft);
+    nextEl && (nextEl.textContent = fmtTime(new Date(toMs(t.end))));
+    // style: <1h red, <30m pulse
+    card.classList.toggle("lowtime", msLeft <= 3600000);
+    card.classList.toggle("urgent",  msLeft <= 1800000);
+    if (t.lastRestart) {
+      const dt = (t.lastRestart instanceof Timestamp) ? t.lastRestart.toDate() : new Date(t.lastRestart);
+      lastEl && (lastEl.textContent = dt.toLocaleString());
+    }
+  });
+}, 1000);
+
+/* ============================================================
+   SCHEDULED TIMERS — Firestore
+============================================================ */
+const schedCol = collection(db, "spaces", SPACE_ID, "scheduledTimers");
+
+/* parse schedules (same as before) */
+const DAY_MAP={sun:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6};
+function parseSchedule(s){
+  if(!s) return [];
+  return s.split(",").map(x=>x.trim()).filter(Boolean).map(p=>{
+    const m=p.match(/^([a-z]{3})\s+(\d{1,2}):(\d{2})(?:\s*(am|pm))?$/i);
+    if(!m) return null;
+    const day=DAY_MAP[m[1].toLowerCase()];
+    let h=+m[2], min=+m[3]; const ap=(m[4]||"").toLowerCase();
+    if(ap==="pm"&&h!==12)h+=12; if(ap==="am"&&h===12)h=0;
+    if(day==null||h>23||min>59) return null;
+    return {day, hour:h, minute:min};
+  }).filter(Boolean);
+}
+function nextFromSchedule(entries, now=new Date()){
+  if(!entries.length) return null;
+  const cd=now.getDay();
+  let best=null;
+  for(const e of entries){
+    const diff=(e.day-cd+7)%7;
+    const cand=new Date(now.getFullYear(), now.getMonth(), now.getDate(), e.hour, e.minute, 0, 0);
+    cand.setDate(cand.getDate()+diff);
+    if(cand<=now) cand.setDate(cand.getDate()+7);
+    if(!best || cand < best) best = cand;
+  }
+  return best;
+}
+
+const renderSchedCard = (t) => `
+  <div class="card" id="s-${t.id}">
+    <h3 class="title">${t.name}</h3>
+    <div class="time" data-si="${t.id}">--:--:--</div>
+    <div class="next">NEXT: <strong data-snext="${t.id}">--:--</strong></div>
+
+    <div class="row">
+      <input class="pill" type="time" data-stime="${t.id}" />
+      <input class="pill" type="date" data-sdate="${t.id}" />
+    </div>
+
+    <div class="row" style="gap:8px;">
+      <button class="btn-gold" data-override="${t.id}">Set Next Spawn</button>
+    </div>
+
+    <div class="muted" style="margin-top:10px">Schedule: ${t.scheduleStr}</div>
+  </div>`;
+
+function wireSchedButtons() {
+  sGrid.addEventListener("click", async (e)=>{
+    const id = e.target.getAttribute("data-override");
+    if(!id) return;
+    const tEl = document.querySelector(`[data-stime="${id}"]`);
+    const dEl = document.querySelector(`[data-sdate="${id}"]`);
+    if(!tEl.value || !dEl.value) return alert("Pick both time and date.");
+    const dt = new Date(`${dEl.value}T${tEl.value}`).getTime();
+    const ref = doc(db, "spaces", SPACE_ID, "scheduledTimers", id);
+    await setDoc(ref, { nextOverride: dt }, { merge:true });
+  }, { passive:true });
+}
+
+async function ensureSchedSeed() {
+  await Promise.all(DEFAULT_SCHED.map(async ({name, sched})=>{
+    const id = slug(name);
+    const ref = doc(db, "spaces", SPACE_ID, "scheduledTimers", id);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      await setDoc(ref, {
+        id, name, scheduleStr: sched,
+        schedule: sched,   // store raw string for display
+        nextOverride: null
+      });
+    }
+  }));
+}
+await ensureSchedSeed();
+
+onSnapshot(schedCol, (qs)=>{
+  const list=[];
+  qs.forEach(d=>list.push(d.data()));
+  sGrid.innerHTML = list
+    .sort((a,b)=>a.name.localeCompare(b.name))
+    .map(renderSchedCard)
+    .join("");
+  wireSchedButtons();
+});
+
+/* Tick updater for scheduled */
+setInterval(async ()=>{
+  const qs = await (await import("https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js")).getDocs(schedCol);
+  const docs = qs.docs.map(d=>d.data());
+  const now = new Date();
+  docs.forEach(t=>{
+    const entries = parseSchedule(t.scheduleStr);
+    const next = t.nextOverride ? new Date(toMs(t.nextOverride)) : (nextFromSchedule(entries, now) || new Date(now.getTime()+3600*1000));
+    const delta = next - now;
+    const timeEl = document.querySelector(`[data-si="${t.id}"]`);
+    const nextEl = document.querySelector(`[data-snext="${t.id}"]`);
+    const card = document.getElementById(`s-${t.id}`);
+    if(timeEl){
+      timeEl.textContent = fmtHMS(delta);
+      nextEl && (nextEl.textContent = fmtTime(next));
+      card && card.classList.toggle("lowtime", delta <= 3600000);
+      card && card.classList.toggle("urgent",  delta <= 1800000);
+    }
+  });
+}, 1000);
+</script>
+</body>
+</html>
