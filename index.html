@@ -182,18 +182,18 @@ const fmtRespawn = ms => {
   return fmtTime(d);
 
   <!-- Add these in <head> (or just above your module script) -->
-<script type="module" src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js"></script>
-<script type="module" src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js"></script>
-<script type="module" src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js"></script>
+<script type="module" src="https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js"></script>
+<script type="module" src="https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js"></script>
+<script type="module" src="https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js"></script>
 
 <!-- Replace your old <script>…</script> with this: -->
 <script type="module">
 /* ============================================================
    Firebase init
 ============================================================ */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 
 /* ---- 1) Paste your Firebase config here ---- */
 const firebaseConfig = {
@@ -202,7 +202,7 @@ const firebaseConfig = {
   projectId: "midnightbosstimer",
   storageBucket: "midnightbosstimer.firebasestorage.app",
   messagingSenderId: "61416631412",
-  appId: "1:61416631412:web:642420966b3c9235eb7521"
+  appId: "1:61416631412:web:781884b33205039beb7521"
 };
 /* -------------------------------------------- */
 
