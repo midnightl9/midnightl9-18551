@@ -155,7 +155,6 @@
       console.log("SAVING TO FB:", data);
       await update(STATE_REF, data);
     }
-    }
     function fbListenState(cb) {
       return onValue(STATE_REF, snap => cb(snap.exists() ? snap.val() : null));
     }
