@@ -1,7 +1,24 @@
-- name: Deploy to Firebase Hosting
-  if: github.event_name == 'push' || github.event.pull_request.head.repo.fork == false
-  uses: FirebaseExtended/action-hosting-deploy@v0
-  with:
-    repoToken: "${{ secrets.GITHUB_TOKEN }}"
-    firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_MIDNIGHTL9_18551 }}"
-    projectId: "midnightl9-18551"
+name: Firebase Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: "${{ secrets.GITHUB_TOKEN }}"
+          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_MIDNIGHTL9_18551 }}"
+          projectId: "midnightl9-18551"
