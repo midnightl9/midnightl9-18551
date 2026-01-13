@@ -208,18 +208,18 @@
      ========================================================= -->
   <script type="module">
     let APPLYING_REMOTE = false;
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-    <script type="module">
+let HAS_REMOTE_STATE = false;
+
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
   import {
     getDatabase,
     ref,
     get,
     update,
-    onValue
+    onValue,
+    runTransaction
   } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
-  // ✅ Your Firebase config (keep yours)
   const firebaseConfig = {
     apiKey: "AIzaSyAO9Rc_JH4fN7zk80iNBjdLTxe2xDZ2yLI",
     authDomain: "midnightl9-18551.firebaseapp.com",
@@ -227,14 +227,15 @@
     storageBucket: "midnightl9-18551.firebasestorage.app",
     messagingSenderId: "288936534734",
     appId: "1:288936534734:web:3190b89a28bbec8147e69f",
-    // ✅ IMPORTANT for RTDB:
+
+    // ✅ REQUIRED for Realtime Database (make sure this matches your RTDB URL in Firebase Console)
     databaseURL: "https://midnightl9-18551-default-rtdb.asia-southeast1.firebasedatabase.app"
   };
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  // ✅ Single shared state location (everyone sees same timers)
+  // ✅ Shared state path (everyone joins the same shared timers)
   const STATE_REF = ref(db, "bossTimers/default");
 
   async function fbLoadState() {
@@ -243,18 +244,26 @@
   }
 
   async function fbSaveState(data) {
-    // update merges keys (manual / scheduled separately)
+    // ✅ merge keys safely (manual / scheduled)
     await update(STATE_REF, data);
   }
 
   function fbListenState(cb) {
-    // realtime stream to all clients
+    // ✅ realtime updates
     return onValue(STATE_REF, (snap) => cb(snap.exists() ? snap.val() : null));
   }
 
-  // Expose to non-module script
-  window.__FB__ = { fbLoadState, fbSaveState, fbListenState };
+  // ✅ Create initial state ONLY if Firebase is empty (prevents “viewer reset”)
+  async function fbInitIfMissing(initialState) {
+    await runTransaction(STATE_REF, (current) => {
+      if (current === null) return initialState;
+      return; // keep existing
+    });
+  }
+
+  window.__FB__ = { fbLoadState, fbSaveState, fbListenState, fbInitIfMissing };
 </script>
+
 
   <script>
     /* ========================= Utilities ========================= */
@@ -294,11 +303,18 @@
       try { return JSON.parse(raw); } catch { return []; }
     }
 
-   function mSave(){
+  function mSave(){
   localStorage.setItem(M_KEY, JSON.stringify(M_STATE));
+
+  // ✅ don't write back while applying remote updates
   if (APPLYING_REMOTE) return;
+
+  // ✅ prevents a new viewer (no remote yet) from overwriting Firebase with defaults
+  if (!HAS_REMOTE_STATE) return;
+
   window.__FB__?.fbSaveState?.({ manual: M_STATE }).catch(console.warn);
 }
+
 
     let M_STATE = mLoad();
     const mGrid = document.getElementById("manual-grid");
@@ -441,12 +457,19 @@
       }catch{return []}
     }
 
-    function sSave(){
+  function sSave(){
   const payload = S_STATE.map(({name,scheduleStr,nextOverride})=>({name,scheduleStr,nextOverride}));
   localStorage.setItem(S_KEY, JSON.stringify(payload));
+
+  // ✅ don't write back while applying remote updates
   if (APPLYING_REMOTE) return;
+
+  // ✅ prevents a new viewer from overwriting Firebase with defaults
+  if (!HAS_REMOTE_STATE) return;
+
   window.__FB__?.fbSaveState?.({ scheduled: payload }).catch(console.warn);
 }
+
 
     let S_STATE = sLoad();
     const sGrid = document.getElementById("sched-grid");
@@ -606,29 +629,20 @@
     /* =========================================================
        ✅ FIREBASE: Load from Firestore on startup (overrides localStorage)
        ========================================================= */
-    (() => {
-  try {
-    // Initial load (optional)
-    window.__FB__?.fbLoadState?.().then((remote) => {
-      if(remote) applyRemote(remote);
-    }).catch(console.warn);
-
-    // ✅ Real-time sync (this is the important part)
-    window.__FB__?.fbListenState?.((remote) => {
-      if(remote) applyRemote(remote);
-    });
-  } catch (e) {
-    console.warn("Firebase realtime listener failed.", e);
-  }
-
+   (() => {
   function applyRemote(remote){
-    APPLYING_REMOTE = true;
+    if(!remote) return;
 
+    APPLYING_REMOTE = true;
+    HAS_REMOTE_STATE = true;
+
+    // Manual: full array
     if(Array.isArray(remote.manual)) {
       M_STATE = remote.manual;
       mRender();
     }
 
+    // Scheduled: payload -> rebuild parsed schedule
     if(Array.isArray(remote.scheduled)) {
       S_STATE = remote.scheduled.map(o => ({
         ...o,
@@ -641,7 +655,36 @@
 
     APPLYING_REMOTE = false;
   }
+
+  (async () => {
+    try {
+      // 1) Load remote once
+      const remote = await window.__FB__?.fbLoadState?.();
+
+      if(remote){
+        applyRemote(remote);
+      } else {
+        // 2) If Firebase empty, initialize it ONCE with your current defaults/local state
+        const initial = {
+          manual: M_STATE,
+          scheduled: S_STATE.map(({name,scheduleStr,nextOverride})=>({name,scheduleStr,nextOverride}))
+        };
+        await window.__FB__?.fbInitIfMissing?.(initial);
+
+        // After init, mark remote exists so saves are allowed
+        HAS_REMOTE_STATE = true;
+      }
+
+      // 3) ✅ Realtime listener so everyone sees updates instantly
+      window.__FB__?.fbListenState?.((live) => {
+        applyRemote(live);
+      });
+    } catch (e) {
+      console.warn("Firebase sync failed, using localStorage.", e);
+    }
+  })();
 })();
+
 
   </script>
 </body>
