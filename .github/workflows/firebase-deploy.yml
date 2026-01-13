@@ -1,25 +1,17 @@
-name: Firebase Hosting Preview
+name: Firebase Deploy (Production)
 
 on:
-  pull_request:
-
-permissions:
-  contents: read
-  checks: write
-  pull-requests: write
+  push:
+    branches: [main]
 
 jobs:
-  preview:
+  deploy:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Deploy to Firebase Hosting (Preview)
-        if: github.event.pull_request.head.repo.fork == false
+      - name: Deploy to Firebase Hosting (Live)
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: "${{ secrets.GITHUB_TOKEN }}"
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_MIDNIGHTL9_18551 }}"
           projectId: "midnightl9-18551"
-          channelId: "pr-${{ github.event.pull_request.number }}"
