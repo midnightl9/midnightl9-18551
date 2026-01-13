@@ -208,36 +208,52 @@
      ========================================================= -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+    <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+  import {
+    getDatabase,
+    ref,
+    get,
+    update,
+    onValue
+  } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
-    // 🔥 PASTE YOUR CONFIG HERE (Firebase Console → Project settings → Your apps → Web app)
-    const firebaseConfig = {
-      apiKey: "AIzaSyAO9Rc_JH4fN7zk80iNBjdLTxe2xDZ2yLI",
-      authDomain: "midnightl9-18551.firebaseapp.com",
-      projectId: "midnightl9-18551",
-      storageBucket: "midnightl9-18551.firebasestorage.app",
-      messagingSenderId: "288936534734",
-      appId: "1:288936534734:web:3190b89a28bbec8147e69f"
-    };
+  // ✅ Your Firebase config (keep yours)
+  const firebaseConfig = {
+    apiKey: "AIzaSyAO9Rc_JH4fN7zk80iNBjdLTxe2xDZ2yLI",
+    authDomain: "midnightl9-18551.firebaseapp.com",
+    projectId: "midnightl9-18551",
+    storageBucket: "midnightl9-18551.firebasestorage.app",
+    messagingSenderId: "288936534734",
+    appId: "1:288936534734:web:3190b89a28bbec8147e69f",
+    // ✅ IMPORTANT for RTDB:
+    databaseURL: "https://midnightl9-18551-default-rtdb.asia-southeast1.firebasedatabase.app"
+  };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
 
-    // Single document store for your whole app state
-    const STATE_REF = doc(db, "bossTimers", "default");
+  // ✅ Single shared state location (everyone sees same timers)
+  const STATE_REF = ref(db, "bossTimers/default");
 
-    async function fbLoadState() {
-      const snap = await getDoc(STATE_REF);
-      return snap.exists() ? snap.data() : null;
-    }
-    async function fbSaveState(data) {
-      // merge true so we can update manual/scheduled separately
-      await setDoc(STATE_REF, data, { merge: true });
-    }
+  async function fbLoadState() {
+    const snap = await get(STATE_REF);
+    return snap.exists() ? snap.val() : null;
+  }
 
-    // Expose to non-module script below
-    window.__FB__ = { fbLoadState, fbSaveState };
-  </script>
+  async function fbSaveState(data) {
+    // update merges keys (manual / scheduled separately)
+    await update(STATE_REF, data);
+  }
+
+  function fbListenState(cb) {
+    // realtime stream to all clients
+    return onValue(STATE_REF, (snap) => cb(snap.exists() ? snap.val() : null));
+  }
+
+  // Expose to non-module script
+  window.__FB__ = { fbLoadState, fbSaveState, fbListenState };
+</script>
 
   <script>
     /* ========================= Utilities ========================= */
