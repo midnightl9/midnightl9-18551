@@ -132,8 +132,7 @@
        - Shared state path: bossTimers/default
      ========================================================= -->
   
- <script type="module">
-
+<script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
   import {
     getDatabase,
@@ -156,33 +155,27 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
-
-  // ✅ shared path (everyone sees same timers)
   const STATE_REF = ref(db, "bossTimers/default");
 
   async function fbLoadState() {
     const snap = await get(STATE_REF);
     return snap.exists() ? snap.val() : null;
   }
-
   async function fbSaveState(data) {
-    await update(STATE_REF, data); // merges manual/scheduled
+    await update(STATE_REF, data);
   }
-
   function fbListenState(cb) {
     return onValue(STATE_REF, snap => cb(snap.exists() ? snap.val() : null));
   }
-
-  // ✅ initialize only if empty
   async function fbInitIfMissing(initialState) {
-    await runTransaction(STATE_REF, current => {
-      if (current === null) return initialState;
-      return; // keep existing
-    });
+    await runTransaction(STATE_REF, current => (current === null ? initialState : undefined));
   }
 
-  window.__FB__ = { fbLoadState, fbSaveState, fbListenState, fbInitIfMissing };
+  // ✅ your existing app code can now run *after* Firebase is ready:
+  // (paste your whole current second-script logic here, but replace window.__FB__ calls
+  // with fbLoadState / fbSaveState / fbListenState / fbInitIfMissing directly)
 </script>
+
 
 
 <script>
