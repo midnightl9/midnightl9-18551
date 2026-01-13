@@ -11,7 +11,6 @@
     --text:#f1f1f1;
     --muted:#b9b9bd;
     --gold:#d4a63f;
-    --gold-2:#ffcf66;
     --btn-bg:#18181b;
     --red:#ff4c4c;
   }
@@ -31,7 +30,7 @@
   .btn{background:#27324a;border-color:#27324a;color:#fff;font-weight:600;cursor:pointer}
   .btn:hover{filter:brightness(1.05)}
 
-  /* ✅ Smaller cards/grid (about 50%) */
+  /* ~50% smaller cards/grid */
   .grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
 
   .card{
@@ -90,14 +89,14 @@
 
   .muted{color:var(--muted); font-size:10.5px}
 
-  .lowtime{ border-color:var(--red) !important; box-shadow:0 0 0 1px rgba(255,76,76,.25), 0 0 14px rgba(255,76,76,.28) !important; }
-  .card.lowtime .time{ color:var(--red); }
-  @keyframes pulse {
-    0% { box-shadow:0 0 12px rgba(255,76,76,.30) }
-    50%{ box-shadow:0 0 18px rgba(255,76,76,.55) }
-    100%{ box-shadow:0 0 12px rgba(255,76,76,.30) }
+  /* ✅ Keep warning styling but STATIC (no pulse animation) */
+  .lowtime{
+    border-color:var(--red) !important;
+    box-shadow:0 0 0 1px rgba(255,76,76,.25), 0 0 14px rgba(255,76,76,.28) !important;
   }
-  .urgent{ animation: pulse 1.1s ease-in-out infinite; }
+  .card.lowtime .time{ color:var(--red); }
+
+  /* ✅ removed pulse keyframes + removed .urgent animation entirely */
 
   hr.sep{border:none;height:1px;background:linear-gradient(90deg,transparent,#34312a,transparent);margin:18px 0}
 </style>
@@ -128,14 +127,8 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-    import {
-      getDatabase,
-      ref,
-      get,
-      update,
-      onValue,
-      runTransaction
-    } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
+    import { getDatabase, ref, get, update, onValue, runTransaction }
+      from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
     /* ========================= Firebase setup ========================= */
     const firebaseConfig = {
@@ -156,18 +149,12 @@
       const snap = await get(STATE_REF);
       return snap.exists() ? snap.val() : null;
     }
-    async function fbSaveState(data) {
-      console.log("SAVING TO FB:", data);
-      await update(STATE_REF, data);
-    }
-    function fbListenState(cb) {
-      return onValue(STATE_REF, snap => cb(snap.exists() ? snap.val() : null));
-    }
+    async function fbSaveState(data) { await update(STATE_REF, data); }
+    function fbListenState(cb) { return onValue(STATE_REF, snap => cb(snap.exists() ? snap.val() : null)); }
     async function fbInitIfMissing(initialState) {
       await runTransaction(STATE_REF, current => (current === null ? initialState : undefined));
     }
 
-    /* ========================= Firebase flags ========================= */
     let APPLYING_REMOTE = false;
     let HAS_REMOTE_STATE = false;
 
@@ -215,7 +202,7 @@
       const it = M_STATE[i];
       it.end = Date.now() + it.hours*3600*1000;
       it.last = new Date().toLocaleString();
-      mSave(); mRender();
+      mSave(); mRender(true);
     }
 
     window.mSetKill = function mSetKill(i){
@@ -227,7 +214,7 @@
       if(isNaN(kill)) return alert("Invalid time/date.");
       M_STATE[i].end = kill.getTime() + M_STATE[i].hours*3600*1000;
       M_STATE[i].last = new Date().toLocaleString();
-      mSave(); mRender();
+      mSave(); mRender(true);
     }
 
     window.mSetNext = function mSetNext(i){
@@ -239,7 +226,7 @@
       if(isNaN(dt)) return alert("Invalid time/date.");
       M_STATE[i].end = dt.getTime();
       M_STATE[i].last = new Date().toLocaleString();
-      mSave(); mRender();
+      mSave(); mRender(true);
     }
 
     function mCardHTML(it,i){
@@ -266,24 +253,26 @@
       `;
     }
 
-    /* ✅ Sort Manual timers lowest -> highest (by time left) */
     function mSortedIndices(){
       const now = Date.now();
-      return M_STATE
-        .map((_, i) => i)
+      return M_STATE.map((_, i) => i)
         .sort((a,b) => ((M_STATE[a].end - now) - (M_STATE[b].end - now)));
     }
 
-    function mRender(){
+    // ✅ render only when needed (not every second)
+    let mLastOrderKey = "";
+    function mRender(force=false){
       const order = mSortedIndices();
+      const key = order.join(",");
+      if(!force && key === mLastOrderKey) return;
+      mLastOrderKey = key;
       mGrid.innerHTML = order.map(i => mCardHTML(M_STATE[i], i)).join("");
     }
-    mRender();
+    mRender(true);
 
+    // ✅ tick updates ONLY text + warning classes (no DOM rebuild)
     setInterval(()=>{
       const now = Date.now();
-
-      // Update visible times
       document.querySelectorAll('[data-mi]').forEach(el=>{
         const i = +el.dataset.mi;
         const left = (M_STATE[i]?.end ?? now) - now;
@@ -293,16 +282,14 @@
         if(!card) return;
 
         if(left <= 3600000) card.classList.add('lowtime'); else card.classList.remove('lowtime');
-        if(left <= 1800000) card.classList.add('urgent'); else card.classList.remove('urgent');
 
         const nextEl = card.querySelector('.next strong');
         if(nextEl) nextEl.textContent = fmtRespawn(M_STATE[i].end);
       });
-
-      // ✅ Re-sort display every second (so lowest always stays first)
-      // (fast enough for this size; keeps the grid always ordered)
-      mRender();
     },1000);
+
+    // ✅ re-sort periodically (doesn't interrupt dropdowns constantly)
+    setInterval(()=> mRender(false), 10000);
 
     document.getElementById("m-add").addEventListener("click", () => {
       const name = document.getElementById("m-name").value.trim();
@@ -317,7 +304,7 @@
       document.getElementById("m-hours").value = "";
 
       mSave();
-      mRender();
+      mRender(true);
     });
 
     /* ===================== Scheduled Timers ===================== */
@@ -395,7 +382,7 @@
       const dt = new Date(`${d}T${t}`);
       if(isNaN(dt)) return alert("Invalid time/date.");
       S_STATE[i].nextOverride = dt.toISOString();
-      sSave(); sRender();
+      sSave(); sRender(true);
     }
 
     function sCardHTML(it,i){
@@ -421,27 +408,27 @@
       `;
     }
 
-    /* ✅ Sort Scheduled timers lowest -> highest (by time left) */
     function sSortedIndices(now=new Date()){
-      return S_STATE
-        .map((_, i) => i)
-        .sort((a,b) => {
-          const na = nextFor(a, now) || new Date(now.getTime()+3600*1000);
-          const nb = nextFor(b, now) || new Date(now.getTime()+3600*1000);
-          return (na - now) - (nb - now);
-        });
+      return S_STATE.map((_, i) => i).sort((a,b) => {
+        const na = nextFor(a, now) || new Date(now.getTime()+3600*1000);
+        const nb = nextFor(b, now) || new Date(now.getTime()+3600*1000);
+        return (na - now) - (nb - now);
+      });
     }
 
-    function sRender(){
+    let sLastOrderKey = "";
+    function sRender(force=false){
       const now = new Date();
       const order = sSortedIndices(now);
+      const key = order.join(",");
+      if(!force && key === sLastOrderKey) return;
+      sLastOrderKey = key;
       sGrid.innerHTML = order.map(i => sCardHTML(S_STATE[i], i)).join("");
     }
-    sRender();
+    sRender(true);
 
     setInterval(()=>{
       const now = new Date();
-
       document.querySelectorAll('[data-si]').forEach(el=>{
         const i = +el.dataset.si;
         const nxt = nextFor(i, now) || new Date(now.getTime()+3600*1000);
@@ -451,15 +438,14 @@
         const card = el.closest('.card');
         if(card){
           if(delta <= 3600000) card.classList.add('lowtime'); else card.classList.remove('lowtime');
-          if(delta <= 1800000) card.classList.add('urgent'); else card.classList.remove('urgent');
           const nextEl = card.querySelector('.next strong');
           if(nextEl) nextEl.textContent = fmtTime(nxt);
         }
       });
-
-      // ✅ Keep scheduled grid sorted too
-      sRender();
     },1000);
+
+    // re-sort periodically
+    setInterval(()=> sRender(false), 10000);
 
     document.getElementById("s-add").addEventListener("click", () => {
       const name = document.getElementById("s-name").value.trim();
@@ -474,7 +460,7 @@
       document.getElementById("s-sched").value = "";
 
       sSave();
-      sRender();
+      sRender(true);
     });
 
     /* =========================================================
@@ -490,7 +476,7 @@
         if (Array.isArray(remote.manual)) {
           M_STATE = remote.manual;
           localStorage.setItem(M_KEY, JSON.stringify(M_STATE));
-          mRender();
+          mRender(true);
         }
 
         if (Array.isArray(remote.scheduled)) {
@@ -500,7 +486,7 @@
           }));
           const payload = S_STATE.map(({name,scheduleStr,nextOverride})=>({name,scheduleStr,nextOverride}));
           localStorage.setItem(S_KEY, JSON.stringify(payload));
-          sRender();
+          sRender(true);
         }
 
         APPLYING_REMOTE = false;
