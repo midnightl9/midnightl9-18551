@@ -96,8 +96,6 @@
   }
   .card.lowtime .time{ color:var(--red); }
 
-  /* ✅ removed pulse keyframes + removed .urgent animation entirely */
-
   hr.sep{border:none;height:1px;background:linear-gradient(90deg,transparent,#34312a,transparent);margin:18px 0}
 </style>
 </head>
@@ -155,8 +153,28 @@
       await runTransaction(STATE_REF, current => (current === null ? initialState : undefined));
     }
 
+    /* ========================= Firebase flags ========================= */
     let APPLYING_REMOTE = false;
     let HAS_REMOTE_STATE = false;
+
+    /* ========================= NEW: updatedAt meta to prevent refresh-loss ========================= */
+    const META_KEY = "bossTimers_meta_v1";
+    function metaLoad(){
+      try { return JSON.parse(localStorage.getItem(META_KEY) || "{}"); }
+      catch { return {}; }
+    }
+    function metaSave(meta){
+      localStorage.setItem(META_KEY, JSON.stringify(meta));
+    }
+    function bumpUpdatedAt(){
+      const meta = metaLoad();
+      meta.updatedAt = Date.now();
+      metaSave(meta);
+      return meta.updatedAt;
+    }
+    function localUpdatedAt(){
+      return metaLoad().updatedAt || 0;
+    }
 
     /* ========================= Utilities ========================= */
     const pad2 = n => n.toString().padStart(2,"0");
@@ -191,11 +209,15 @@
     let M_STATE = mLoad();
     const mGrid = document.getElementById("manual-grid");
 
+    /* ✅ UPDATED: always push full state w/ updatedAt so Firebase doesn't overwrite new local changes */
     function mSave(){
       localStorage.setItem(M_KEY, JSON.stringify(M_STATE));
+      const updatedAt = bumpUpdatedAt();
       if (APPLYING_REMOTE) return;
-      if (!HAS_REMOTE_STATE) return;
-      fbSaveState({ manual: M_STATE }).catch(console.warn);
+
+      const scheduledPayload = S_STATE.map(({name,scheduleStr,nextOverride})=>({name,scheduleStr,nextOverride}));
+      fbSaveState({ manual: M_STATE, scheduled: scheduledPayload, updatedAt }).catch(console.warn);
+      HAS_REMOTE_STATE = true;
     }
 
     window.mRestart = function mRestart(i){
@@ -259,7 +281,6 @@
         .sort((a,b) => ((M_STATE[a].end - now) - (M_STATE[b].end - now)));
     }
 
-    // ✅ render only when needed (not every second)
     let mLastOrderKey = "";
     function mRender(force=false){
       const order = mSortedIndices();
@@ -270,7 +291,6 @@
     }
     mRender(true);
 
-    // ✅ tick updates ONLY text + warning classes (no DOM rebuild)
     setInterval(()=>{
       const now = Date.now();
       document.querySelectorAll('[data-mi]').forEach(el=>{
@@ -288,7 +308,6 @@
       });
     },1000);
 
-    // ✅ re-sort periodically (doesn't interrupt dropdowns constantly)
     setInterval(()=> mRender(false), 10000);
 
     document.getElementById("m-add").addEventListener("click", () => {
@@ -348,7 +367,6 @@
       {name:"Ringor",    scheduleStr:"sat 17:00"},
       {name:"Roderick",  scheduleStr:"fri 19:00"},
       {name:"Auraq",     scheduleStr:"sun 21:00, wed 21:00"},
-      
     ];
 
     function sLoad(){
@@ -363,12 +381,15 @@
     let S_STATE = sLoad();
     const sGrid = document.getElementById("sched-grid");
 
+    /* ✅ UPDATED: always push full state w/ updatedAt so Firebase doesn't overwrite on refresh */
     function sSave(){
       const payload = S_STATE.map(({name,scheduleStr,nextOverride})=>({name,scheduleStr,nextOverride}));
       localStorage.setItem(S_KEY, JSON.stringify(payload));
+      const updatedAt = bumpUpdatedAt();
       if (APPLYING_REMOTE) return;
-      if (!HAS_REMOTE_STATE) return;
-      fbSaveState({ scheduled: payload }).catch(console.warn);
+
+      fbSaveState({ manual: M_STATE, scheduled: payload, updatedAt }).catch(console.warn);
+      HAS_REMOTE_STATE = true;
     }
 
     function nextFor(i, now=new Date()){
@@ -445,7 +466,6 @@
       });
     },1000);
 
-    // re-sort periodically
     setInterval(()=> sRender(false), 10000);
 
     document.getElementById("s-add").addEventListener("click", () => {
@@ -466,10 +486,20 @@
 
     /* =========================================================
        ✅ FIREBASE: Load on startup + realtime updates
+       ✅ UPDATED: "newer wins" to prevent refresh from overwriting recent local changes
        ========================================================= */
     (async function firebaseRealtimeSync(){
       function applyRemote(remote){
         if(!remote) return;
+
+        const remoteUpdatedAt = remote.updatedAt || 0;
+        const localUA = localUpdatedAt();
+
+        // ✅ If local is newer than Firebase, don't overwrite it
+        if (localUA > remoteUpdatedAt) {
+          HAS_REMOTE_STATE = true;
+          return;
+        }
 
         APPLYING_REMOTE = true;
         HAS_REMOTE_STATE = true;
@@ -490,6 +520,9 @@
           sRender(true);
         }
 
+        // keep meta in sync
+        if (remoteUpdatedAt) metaSave({ updatedAt: remoteUpdatedAt });
+
         APPLYING_REMOTE = false;
       }
 
@@ -501,7 +534,8 @@
         } else {
           const initial = {
             manual: M_STATE,
-            scheduled: S_STATE.map(({name,scheduleStr,nextOverride})=>({name,scheduleStr,nextOverride}))
+            scheduled: S_STATE.map(({name,scheduleStr,nextOverride})=>({name,scheduleStr,nextOverride})),
+            updatedAt: localUpdatedAt() || Date.now()
           };
           await fbInitIfMissing(initial);
           HAS_REMOTE_STATE = true;
