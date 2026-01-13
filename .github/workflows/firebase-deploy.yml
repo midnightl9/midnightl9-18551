@@ -12,7 +12,6 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -22,3 +21,4 @@ jobs:
           repoToken: "${{ secrets.GITHUB_TOKEN }}"
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_MIDNIGHTL9_18551 }}"
           projectId: "midnightl9-18551"
+          entryPoint: "."
