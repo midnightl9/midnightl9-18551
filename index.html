@@ -207,6 +207,7 @@
        2) Enable Firestore in Firebase Console
      ========================================================= -->
   <script type="module">
+    let APPLYING_REMOTE = false;
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
     <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
@@ -293,11 +294,11 @@
       try { return JSON.parse(raw); } catch { return []; }
     }
 
-    function mSave(){
-      localStorage.setItem(M_KEY, JSON.stringify(M_STATE));
-      // ✅ Save to Firebase too
-      window.__FB__?.fbSaveState?.({ manual: M_STATE }).catch(console.warn);
-    }
+   function mSave(){
+  localStorage.setItem(M_KEY, JSON.stringify(M_STATE));
+  if (APPLYING_REMOTE) return;
+  window.__FB__?.fbSaveState?.({ manual: M_STATE }).catch(console.warn);
+}
 
     let M_STATE = mLoad();
     const mGrid = document.getElementById("manual-grid");
@@ -441,11 +442,11 @@
     }
 
     function sSave(){
-      const payload = S_STATE.map(({name,scheduleStr,nextOverride})=>({name,scheduleStr,nextOverride}));
-      localStorage.setItem(S_KEY, JSON.stringify(payload));
-      // ✅ Save to Firebase too
-      window.__FB__?.fbSaveState?.({ scheduled: payload }).catch(console.warn);
-    }
+  const payload = S_STATE.map(({name,scheduleStr,nextOverride})=>({name,scheduleStr,nextOverride}));
+  localStorage.setItem(S_KEY, JSON.stringify(payload));
+  if (APPLYING_REMOTE) return;
+  window.__FB__?.fbSaveState?.({ scheduled: payload }).catch(console.warn);
+}
 
     let S_STATE = sLoad();
     const sGrid = document.getElementById("sched-grid");
@@ -605,31 +606,43 @@
     /* =========================================================
        ✅ FIREBASE: Load from Firestore on startup (overrides localStorage)
        ========================================================= */
-    (async () => {
-      try {
-        const remote = await window.__FB__?.fbLoadState?.();
-        if(remote){
-          // Manual: stored as full M_STATE array
-          if(Array.isArray(remote.manual)) {
-            M_STATE = remote.manual;
-            mRender();
-          }
+    (() => {
+  try {
+    // Initial load (optional)
+    window.__FB__?.fbLoadState?.().then((remote) => {
+      if(remote) applyRemote(remote);
+    }).catch(console.warn);
 
-          // Scheduled: stored as payload array -> rebuild schedule parsed field
-          if(Array.isArray(remote.scheduled)) {
-            S_STATE = remote.scheduled.map(o => ({
-              ...o,
-              schedule: parseSchedule(o.scheduleStr || "")
-            }));
-            sRender();
-          }
+    // ✅ Real-time sync (this is the important part)
+    window.__FB__?.fbListenState?.((remote) => {
+      if(remote) applyRemote(remote);
+    });
+  } catch (e) {
+    console.warn("Firebase realtime listener failed.", e);
+  }
 
-          if(SORT_ENABLED){ mAutoSort(); sAutoSort(); }
-        }
-      } catch (e) {
-        console.warn("Firebase load failed, using localStorage.", e);
-      }
-    })();
+  function applyRemote(remote){
+    APPLYING_REMOTE = true;
+
+    if(Array.isArray(remote.manual)) {
+      M_STATE = remote.manual;
+      mRender();
+    }
+
+    if(Array.isArray(remote.scheduled)) {
+      S_STATE = remote.scheduled.map(o => ({
+        ...o,
+        schedule: parseSchedule(o.scheduleStr || "")
+      }));
+      sRender();
+    }
+
+    if(SORT_ENABLED){ mAutoSort(); sAutoSort(); }
+
+    APPLYING_REMOTE = false;
+  }
+})();
+
   </script>
 </body>
 </html>
