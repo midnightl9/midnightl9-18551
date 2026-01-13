@@ -1,181 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Midnight Boss Timer</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Midnight Boss Timer</title>
+<style>
+  :root{
+    --bg:#0b0b0d;
+    --panel:#111113;
+    --text:#f1f1f1;
+    --muted:#b9b9bd;
+    --gold:#d4a63f;          /* main gold */
+    --gold-2:#ffcf66;        /* lighter gold for glow */
+    --btn-bg:#18181b;
+    --red:#ff4c4c;
+  }
 
-  <style>
-    /* === 50% smaller cardss === */
-    .card{ padding:8px 6px; border-radius:10px; }
-    .title{ font-size:13px; margin-bottom:6px; }
-    .time{ font-size:10px; margin:6px 0 6px; }
-    .next{ font-size:9px; margin-bottom:6px; }
-    .row{ gap:6px; margin:6px 0 6px; }
-    .pill{ width:120px; height:26px; font-size:10px; }
-    .btn-gold{ width:120px; height:26px; font-size:10px; }
-    .muted{ font-size:9px; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial}
+  h1{margin:24px 20px 8px;font-size:28px}
+  .section{padding:0 20px 28px}
 
-    /* Fix grid spacing after scaling */
-    .grid{
-      display:grid;
-      grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));
-      gap:6px; /* very tight spacing */
-    }
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 18px}
+  .input,.btn{
+    height:38px;border-radius:10px;border:1px solid rgba(255,255,255,.12);
+    background:#0f0f12;color:var(--text);padding:0 12px;outline:none
+  }
+  .input::placeholder{color:#8f8f95}
+  .btn{background:#27324a;border-color:#27324a;color:#fff;font-weight:600;cursor:pointer}
+  .btn:hover{filter:brightness(1.05)}
 
-    :root{
-      --bg:#0b0b0d;
-      --panel:#111113;
-      --text:#f1f1f1;
-      --muted:#b9b9bd;
-      --gold:#d4a63f;          /* main gold */
-      --gold-2:#ffcf66;        /* lighter gold for glow */
-      --btn-bg:#18181b;
-      --red:#ff4c4c;
-    }
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
 
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial}
-    h1{margin:24px 20px 8px;font-size:28px}
-    .section{padding:0 20px 28px}
-    .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 18px}
+  /* === Gold Card Look === */
+  .card{
+    background:var(--panel);
+    border:2px solid var(--gold);
+    border-radius:14px;
+    padding:18px 16px;
+    box-shadow:0 0 0 1px rgba(212,166,63,.15), 0 0 20px rgba(255,207,102,.15);
+    transition:box-shadow .3s,border-color .3s,transform .2s;
+    text-align:center;
+  }
+  .card:hover{ transform: translateY(-1px); box-shadow:0 0 0 1px rgba(212,166,63,.25), 0 0 28px rgba(255,207,102,.22); }
 
-    .input,.btn{
-      height:38px;border-radius:10px;border:1px solid rgba(255,255,255,.12);
-      background:#0f0f12;color:var(--text);padding:0 12px;outline:none
-    }
-    .input::placeholder{color:#8f8f95}
-    .btn{background:#27324a;border-color:#27324a;color:#fff;font-weight:600;cursor:pointer}
-    .btn:hover{filter:brightness(1.05)}
+  .title{
+    margin:0 0 10px;
+    font-size:22px; letter-spacing:.06em; text-transform:uppercase;
+    color:#f2e6c9;
+  }
+  .time{
+    font-size:34px; font-weight:800; letter-spacing:.12em; margin:4px 0 8px;
+    color:#ffffff; transition:color .3s ease;
+  }
+  .next{
+    font-size:13px; letter-spacing:.15em; color:#d7d7db; text-transform:uppercase; margin-bottom:14px;
+  }
 
-    /* === Gold Card Look === */
-    .card{
-      background:var(--panel);
-      border:6px solid var(--gold);
-      border-radius:14px;
-      padding:18px 16px;
-      box-shadow:0 0 0 1px rgba(212,166,63,.15), 0 0 20px rgba(255,207,102,.15);
-      transition:box-shadow .3s,border-color .3s,transform .2s;
-      text-align:center;
-    }
-    .card:hover{
-      transform: translateY(-1px);
-      box-shadow:0 0 0 1px rgba(212,166,63,.25), 0 0 28px rgba(255,207,102,.22);
-    }
-    .title{
-      margin:0 0 10px;
-      font-size:22px;
-      letter-spacing:.06em;
-      text-transform:uppercase;
-      color:#f2e6c9;
-    }
-    .time{
-      font-size:34px;
-      font-weight:800;
-      letter-spacing:.12em;
-      margin:4px 0 8px;
-      color:#ffffff;
-      transition:color .3s ease;
-    }
-    .next{
-      font-size:13px;
-      letter-spacing:.15em;
-      color:#d7d7db;
-      text-transform:uppercase;
-      margin-bottom:14px;
-    }
+  /* Inputs like your screenshot */
+  .row{display:flex;flex-direction:column;gap:10px;align-items:center; margin:10px 0 4px}
+  .pill{
+    width:180px; height:40px;
+    border-radius:10px;
+    border:1.5px solid var(--gold);
+    background:transparent;
+    color:#e8e0cd;
+    text-align:center;
+    font-size:14px;
+    outline:none;
+  }
+  .pill::placeholder{color:#8f8f95}
+  .pill[type="time"]::-webkit-calendar-picker-indicator,
+  .pill[type="date"]::-webkit-calendar-picker-indicator{
+    filter: invert(0.8) sepia(0.4) saturate(4) hue-rotate(-20deg);
+  }
 
-    /* Inputs like your screenshot */
-    .row{display:flex;flex-direction:column;gap:10px;align-items:center; margin:10px 0 4px}
-    .pill{
-      width:180px;
-      height:40px;
-      border-radius:10px;
-      border:1.5px solid var(--gold);
-      background:transparent;
-      color:#e8e0cd;
-      text-align:center;
-      font-size:14px;
-      outline:none;
-    }
-    .pill::placeholder{color:#8f8f95}
-    .pill[type="time"]::-webkit-calendar-picker-indicator,
-    .pill[type="date"]::-webkit-calendar-picker-indicator{
-      filter: invert(0.8) sepia(0.4) saturate(4) hue-rotate(-20deg);
-    }
-    .btn-gold{
-      min-width:180px;
-      height:40px;
-      border-radius:10px;
-      background:var(--btn-bg);
-      color:#f6e7bf;
-      border:1.5px solid var(--gold);
-      cursor:pointer;
-      font-weight:700;
-    }
-    .btn-gold:hover{ box-shadow:0 0 16px rgba(255,207,102,.15); }
-    .muted{color:var(--muted); font-size:12.5px}
+  .btn-gold{
+    min-width:180px;
+    height:40px;
+    border-radius:10px;
+    background:var(--btn-bg);
+    color:#f6e7bf;
+    border:1.5px solid var(--gold);
+    cursor:pointer; font-weight:700;
+  }
+  .btn-gold:hover{ box-shadow:0 0 16px rgba(255,207,102,.15); }
 
-    /* Alerts */
-    .lowtime{
-      border-color:var(--red) !important;
-      box-shadow:0 0 0 1px rgba(255,76,76,.25), 0 0 20px rgba(255,76,76,.35) !important;
-    }
-    .card.lowtime .time{ color:var(--red); }
+  .muted{color:var(--muted); font-size:12.5px}
 
-    @keyframes pulse {
-      0% { box-shadow:0 0 18px rgba(255,76,76,.35) }
-      50%{ box-shadow:0 0 28px rgba(255,76,76,.65) }
-      100%{ box-shadow:0 0 18px rgba(255,76,76,.35) }
-    }
-    .urgent{ animation: pulse 1.1s ease-in-out infinite; }
-
-    hr.sep{
-      border:none;height:1px;
-      background:linear-gradient(90deg,transparent,#34312a,transparent);
-      margin:22px 0
-    }
-    /* ✅ FIXED / CONSISTENT CARD HEIGHT */
-.card{
-  height: 480px;              /* change this number to your liking */
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  overflow: hidden;           /* keeps it clean if something overflows */
-}
-
-/* Keep buttons grouped nicely and push "Last restart" to bottom */
-.card .muted{
-  margin-top: auto !important; /* forces it to stick at the bottom */
-}
-
-/* Optional: tighten the button row so it fits better */
-.card .row[style*="gap:8px"]{
-  gap: 6px !important;
-}
-
-/* Optional: if any long boss name breaks layout */
-.title{
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-/* ✅ CARD WIDTH CONTROL (and tighter grid) */
-.grid{
-  grid-template-columns: repeat(auto-fill, minmax(220px, 220px)) !important; /* card width */
-  justify-content: start;  /* keeps cards packed left */
-  gap: 8px !important;     /* spacing between cards */
-}
-
-.card{
-  width: 220px;            /* must match the minmax above */
-}
-
-
-  </style>
+  /* Alerts */
+  .lowtime{ border-color:var(--red) !important; box-shadow:0 0 0 1px rgba(255,76,76,.25), 0 0 20px rgba(255,76,76,.35) !important; }
+  .card.lowtime .time{ color:var(--red); }
+  @keyframes pulse {
+    0% { box-shadow:0 0 18px rgba(255,76,76,.35) }
+    50%{ box-shadow:0 0 28px rgba(255,76,76,.65) }
+    100%{ box-shadow:0 0 18px rgba(255,76,76,.35) }
+  }
+  .urgent{ animation: pulse 1.1s ease-in-out infinite; }
+  hr.sep{border:none;height:1px;background:linear-gradient(90deg,transparent,#34312a,transparent);margin:22px 0}
+</style>
 </head>
-
 <body>
+
   <!-- ===================== Manual (Gold cards) ===================== -->
   <div class="section">
     <h1>Manual Boss Timers</h1>
@@ -183,7 +109,6 @@
       <input id="m-name" class="input" placeholder="Boss Name" />
       <input id="m-hours" class="input" type="number" min="1" placeholder="Hours" />
       <button id="m-add" class="btn">Add Manual Timer</button>
-      <button id="sort-toggle" class="btn">Sort: ON</button>
     </div>
     <div id="manual-grid" class="grid"></div>
   </div>
@@ -202,457 +127,364 @@
   </div>
 
   <!-- =========================================================
-       ✅ FIREBASE (Firestore) - merged into your page
-       1) Replace firebaseConfig with your Firebase Console config
-       2) Enable Firestore in Firebase Console
+       ✅ FIREBASE Realtime Database
+       - Uses your project settings
+       - Shared state path: bossTimers/default
      ========================================================= -->
   <script type="module">
-    let APPLYING_REMOTE = false;
-let HAS_REMOTE_STATE = false;
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+    import {
+      getDatabase,
+      ref,
+      get,
+      update,
+      onValue,
+      runTransaction
+    } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-  import {
-    getDatabase,
-    ref,
-    get,
-    update,
-    onValue,
-    runTransaction
-  } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyAO9Rc_JH4fN7zk80iNBjdLTxe2xDZ2yLI",
-    authDomain: "midnightl9-18551.firebaseapp.com",
-    projectId: "midnightl9-18551",
-    storageBucket: "midnightl9-18551.firebasestorage.app",
-    messagingSenderId: "288936534734",
-    appId: "1:288936534734:web:3190b89a28bbec8147e69f",
-
-    // ✅ REQUIRED for Realtime Database (make sure this matches your RTDB URL in Firebase Console)
-    databaseURL: "https://midnightl9-18551-default-rtdb.firebaseio.com"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-
-  // ✅ Shared state path (everyone joins the same shared timers)
-  const STATE_REF = ref(db, "bossTimers/default");
-
-  async function fbLoadState() {
-    const snap = await get(STATE_REF);
-    return snap.exists() ? snap.val() : null;
-  }
-
-  async function fbSaveState(data) {
-    // ✅ merge keys safely (manual / scheduled)
-    await update(STATE_REF, data);
-  }
-
-  function fbListenState(cb) {
-    // ✅ realtime updates
-    return onValue(STATE_REF, (snap) => cb(snap.exists() ? snap.val() : null));
-  }
-
-  // ✅ Create initial state ONLY if Firebase is empty (prevents “viewer reset”)
-  async function fbInitIfMissing(initialState) {
-    await runTransaction(STATE_REF, (current) => {
-      if (current === null) return initialState;
-      return; // keep existing
-    });
-  }
-
-  window.__FB__ = { fbLoadState, fbSaveState, fbListenState, fbInitIfMissing };
-</script>
-
-
-  <script>
-    /* ========================= Utilities ========================= */
-    const pad2 = n => n.toString().padStart(2,"0");
-    const fmtHMS = ms => {
-      const s = Math.max(0, Math.floor(ms/1000));
-      const h = Math.floor(s/3600);
-      const m = Math.floor((s%3600)/60);
-      const sec = s%60;
-      return `${pad2(h)}:${pad2(m)}:${pad2(sec)}`;
+    const firebaseConfig = {
+      apiKey: "AIzaSyAO9Rc_JH4fN7zk80iNBjdLTxe2xDZ2yLI",
+      authDomain: "midnightl9-18551.firebaseapp.com",
+      databaseURL: "https://midnightl9-18551-default-rtdb.firebaseio.com",
+      projectId: "midnightl9-18551",
+      storageBucket: "midnightl9-18551.firebasestorage.app",
+      messagingSenderId: "288936534734",
+      appId: "1:288936534734:web:3190b89a28bbec8147e69f",
+      measurementId: "G-6QPKKP8DHF"
     };
-    const fmtTime = d => d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}); // “10:49”
-    const fmtRespawn = ms => fmtTime(new Date(ms));
 
-    /* ====================== Auto Sort Helpers ====================== */
-    function reorderChildrenByKey(gridEl, keyArr){
-      const frag = document.createDocumentFragment();
-      keyArr.forEach(el => frag.appendChild(el));
-      gridEl.appendChild(frag);
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // Everyone shares the same timers here
+    const STATE_REF = ref(db, "bossTimers/default");
+
+    async function fbLoadState() {
+      const snap = await get(STATE_REF);
+      return snap.exists() ? snap.val() : null;
     }
 
-    /* ====================== Manual Timers ======================= */
-    const M_KEY="manual_gold_style_v1";
-    const DEFAULT_MANUAL=[
-      ["Venatus",10],["Viorent",10],["Ego",21],["Livera",24],["Araneo",24],
-      ["Undomiel",24],["Lady Dalia",18],["General Aquleus",29],["Amentis",29],["Baron Braudmore",32],
-      ["Wannitas",48],["Metus",48],["Duplican",48],["Shuliar",35],["Gareth",32],
-      ["Titore",37],["Larba",35],["Catena",35]
-    ];
+    async function fbSaveState(data) {
+      // merge update
+      await update(STATE_REF, data);
+    }
 
-  const INIT_KEY = "boss_timer_initialized_v1";
+    function fbListenState(cb) {
+      return onValue(STATE_REF, (snap) => cb(snap.exists() ? snap.val() : null));
+    }
+
+    async function fbInitIfMissing(initialState) {
+      await runTransaction(STATE_REF, (current) => {
+        if (current === null) return initialState;
+        return; // keep existing
+      });
+    }
+
+    window.__FB__ = { fbLoadState, fbSaveState, fbListenState, fbInitIfMissing };
+  </script>
+
+<script>
+/* ========================= Firebase flags ========================= */
+let APPLYING_REMOTE = false;
+let HAS_REMOTE_STATE = false;
+
+/* ========================= Utilities ========================= */
+const pad2 = n => n.toString().padStart(2,"0");
+const fmtHMS = ms => {
+  const s = Math.max(0, Math.floor(ms/1000));
+  const h = Math.floor(s/3600);
+  const m = Math.floor((s%3600)/60);
+  const sec = s%60;
+  return `${pad2(h)}:${pad2(m)}:${pad2(sec)}`;
+};
+const fmtTime = d => d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}); // “10:49”
+const fmtRespawn = ms => {
+  const d = new Date(ms);
+  return fmtTime(d);
+};
+
+/* ====================== Manual Timers ======================= */
+const M_KEY="manual_gold_style_v1";
+const DEFAULT_MANUAL=[
+  ["Venatus",10],["Viorent",10],["Ego",21],["Livera",24],["Araneo",24],
+  ["Undomiel",24],["Lady Dalia",18],["General Aquleus",29],["Amentis",29],["Baron Braudmore",32],
+  ["Wannitas",48],["Metus",48],["Duplican",48],["Shuliar",35],["Gareth",32],
+  ["Titore",37],["Larba",35],["Catena",35]
+];
 
 function mLoad(){
   const raw = localStorage.getItem(M_KEY);
-  if(raw){
-    try { return JSON.parse(raw); } catch {}
+  if(!raw){
+    const now = Date.now();
+    return DEFAULT_MANUAL.map(([name,h])=>({name,hours:h,end:now+h*3600*1000,last:"—"}));
   }
-
-  // if we already initialized before but storage is gone, don't reset silently
-  if(localStorage.getItem(INIT_KEY) === "1"){
-    return []; // or show a message / require re-sync
-  }
-
-  localStorage.setItem(INIT_KEY, "1");
-  const now = Date.now();
-  return DEFAULT_MANUAL.map(([name,h])=>({name,hours:h,end:now+h*3600*1000,last:"—"}));
+  try { return JSON.parse(raw); } catch { return []; }
 }
 
-  function mSave(){
+function mSave(){
   localStorage.setItem(M_KEY, JSON.stringify(M_STATE));
 
-  // ✅ don't write back while applying remote updates
+  // don't write back while applying remote updates
   if (APPLYING_REMOTE) return;
 
-  // ✅ prevents a new viewer (no remote yet) from overwriting Firebase with defaults
+  // prevents a fresh viewer from overwriting Firebase before remote is confirmed
   if (!HAS_REMOTE_STATE) return;
 
   window.__FB__?.fbSaveState?.({ manual: M_STATE }).catch(console.warn);
 }
 
+let M_STATE = mLoad();
 
-    let M_STATE = mLoad();
-    const mGrid = document.getElementById("manual-grid");
-    let _mLastOrder = "";
+const mGrid = document.getElementById("manual-grid");
 
-    function mRestart(i){
-      const it = M_STATE[i];
-      it.end = Date.now() + it.hours*3600*1000;
-      it.last = new Date().toLocaleString();
-      mSave();
-      mRender();
-    }
+function mRestart(i){
+  const it = M_STATE[i];
+  it.end = Date.now() + it.hours*3600*1000;
+  it.last = new Date().toLocaleString();
+  mSave(); mRender();
+}
+function mSetKill(i){
+  const card = document.querySelector(`[data-mcard="${i}"]`);
+  const t = card.querySelector('[data-mtime]').value;
+  const d = card.querySelector('[data-mdate]').value;
+  if(!t || !d) return alert("Pick both time and date.");
+  const kill = new Date(`${d}T${t}`);
+  if(isNaN(kill)) return alert("Invalid time/date.");
+  M_STATE[i].end = kill.getTime() + M_STATE[i].hours*3600*1000;
+  M_STATE[i].last = new Date().toLocaleString();
+  mSave(); mRender();
+}
+function mSetNext(i){
+  const card = document.querySelector(`[data-mcard="${i}"]`);
+  const t = card.querySelector('[data-mtime]').value;
+  const d = card.querySelector('[data-mdate]').value;
+  if(!t || !d) return alert("Pick both time and date.");
+  const dt = new Date(`${d}T${t}`);
+  if(isNaN(dt)) return alert("Invalid time/date.");
+  M_STATE[i].end = dt.getTime();
+  M_STATE[i].last = new Date().toLocaleString();
+  mSave(); mRender();
+}
 
-    function mSetKill(i){
-      const card = document.querySelector(`[data-mcard="${i}"]`);
-      const t = card.querySelector('[data-mtime]').value;
-      const d = card.querySelector('[data-mdate]').value;
-      if(!t || !d) return alert("Pick both time and date.");
-      const kill = new Date(`${d}T${t}`);
-      if(isNaN(kill)) return alert("Invalid time/date.");
-      M_STATE[i].end = kill.getTime() + M_STATE[i].hours*3600*1000;
-      M_STATE[i].last = new Date().toLocaleString();
-      mSave();
-      mRender();
-    }
+function mCardHTML(it,i){
+  const left = it.end - Date.now();
+  return `
+    <div class="card" data-mcard="${i}">
+      <h3 class="title">${it.name}</h3>
+      <div class="time" data-mi="${i}">${fmtHMS(left)}</div>
+      <div class="next">NEXT: <strong>${fmtRespawn(it.end)}</strong></div>
 
-    function mSetNext(i){
-      const card = document.querySelector(`[data-mcard="${i}"]`);
-      const t = card.querySelector('[data-mtime]').value;
-      const d = card.querySelector('[data-mdate]').value;
-      if(!t || !d) return alert("Pick both time and date.");
-      const dt = new Date(`${d}T${t}`);
-      if(isNaN(dt)) return alert("Invalid time/date.");
-      M_STATE[i].end = dt.getTime();
-      M_STATE[i].last = new Date().toLocaleString();
-      mSave();
-      mRender();
-    }
+      <div class="row">
+        <input class="pill" type="time" data-mtime />
+        <input class="pill" type="date" data-mdate />
+      </div>
 
-    function mCardHTML(it,i){
-      const left = it.end - Date.now();
-      return `
-        <div class="card" data-mcard="${i}">
-          <h3 class="title">${it.name}</h3>
-          <div class="time" data-mi="${i}">${fmtHMS(left)}</div>
-          <div class="next">NEXT: <strong>${fmtRespawn(it.end)}</strong></div>
+      <div class="row" style="gap:8px;">
+        <button class="btn-gold" onclick="mRestart(${i})">Killed Now</button>
+        <button class="btn-gold" onclick="mSetKill(${i})">Set Manual Kill Time</button>
+        <button class="btn-gold" onclick="mSetNext(${i})">Set Next Spawn</button>
+      </div>
 
-          <div class="row">
-            <input class="pill" type="time" data-mtime />
-            <input class="pill" type="date" data-mdate />
-          </div>
+      <div class="muted" style="margin-top:10px">Last restart: ${it.last}</div>
+    </div>
+  `;
+}
+function mRender(){ mGrid.innerHTML = M_STATE.map(mCardHTML).join(""); }
+mRender();
 
-          <div class="row" style="gap:8px;">
-            <button class="btn-gold" onclick="mRestart(${i})">Killed Now</button>
-            <button class="btn-gold" onclick="mSetKill(${i})">Set Manual Kill Time</button>
-            <button class="btn-gold" onclick="mSetNext(${i})">Set Next Spawn</button>
-          </div>
+/* live tick + alerts */
+setInterval(()=>{
+  const now = Date.now();
+  document.querySelectorAll('[data-mi]').forEach(el=>{
+    const i = +el.dataset.mi;
+    const left = (M_STATE[i]?.end ?? now) - now;
+    el.textContent = fmtHMS(left);
+    const card = el.closest('.card');
+    if(!card) return;
 
-          <div class="muted" style="margin-top:10px">Last restart: ${it.last}</div>
-        </div>
-      `;
-    }
+    // alerts: <1h red, <30m pulse
+    if(left <= 3600000) card.classList.add('lowtime'); else card.classList.remove('lowtime');
+    if(left <= 1800000) card.classList.add('urgent'); else card.classList.remove('urgent');
 
-    function mRender(){
-      mGrid.innerHTML = M_STATE.map(mCardHTML).join("");
-    }
-    mRender();
+    // update NEXT text
+    const nextEl = card.querySelector('.next strong');
+    if(nextEl) nextEl.textContent = fmtRespawn(M_STATE[i].end);
+  });
+},1000);
 
-    function mAutoSort(){
-      const now = Date.now();
-      const cards = Array.from(mGrid.children);
-      const sorted = cards
-        .map(card => {
-          const i = +card.dataset.mcard;
-          return { card, left: (M_STATE[i]?.end ?? now) - now };
-        })
-        .sort((a,b) => a.left - b.left)
-        .map(x => x.card);
+/* ===================== Manual Add Button ===================== */
+document.getElementById("m-add").addEventListener("click", () => {
+  const name = document.getElementById("m-name").value.trim();
+  const hours = parseFloat(document.getElementById("m-hours").value);
+  if(!name) return alert("Enter a boss name.");
+  if(!hours || hours <= 0) return alert("Enter hours > 0.");
 
-      const orderKey = sorted.map(c => c.dataset.mcard).join(",");
-      if(orderKey === _mLastOrder) return;
-      _mLastOrder = orderKey;
-      reorderChildrenByKey(mGrid, sorted);
-    }
+  const now = Date.now();
+  M_STATE.push({ name, hours, end: now + hours*3600*1000, last: new Date().toLocaleString() });
 
-    /* ===================== Scheduled Timers ===================== */
-    const S_KEY="scheduled_gold_style_v1";
-    const DAY_MAP={sun:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6};
+  document.getElementById("m-name").value = "";
+  document.getElementById("m-hours").value = "";
 
-    function parseSchedule(s){
-      if(!s) return [];
-      return s.split(",")
-        .map(x=>x.trim())
-        .filter(Boolean)
-        .map(p=>{
-          const m=p.match(/^([a-z]{3})\s+(\d{1,2}):(\d{2})(?:\s*(am|pm))?$/i);
-          if(!m) return null;
-          const day=DAY_MAP[m[1].toLowerCase()];
-          let h=parseInt(m[2],10), minute=parseInt(m[3],10);
-          const ap=(m[4]||"").toLowerCase();
-          if(ap==="pm"&&h!==12)h+=12;
-          if(ap==="am"&&h===12)h=0;
-          if(day==null||h>23||minute>59) return null;
-          return {day,hour:h,minute};
-        })
-        .filter(Boolean);
-    }
+  mSave();
+  mRender();
+});
 
-    function nextFromSchedule(list, now=new Date()){
-      if(!list.length) return null;
-      let best=null;
-      for(const e of list){
-        const cand=new Date(now);
-        cand.setHours(e.hour,e.minute,0,0);
-        const diff=(e.day-now.getDay()+7)%7;
-        cand.setDate(cand.getDate()+diff);
-        if(cand<=now) cand.setDate(cand.getDate()+7);
-        if(!best || cand < best) best = cand;
-      }
-      return best;
-    }
+/* ===================== Scheduled Timers ===================== */
+const S_KEY="scheduled_gold_style_v1";
+const DAY_MAP={sun:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6};
 
-    const DEFAULT_SCHED=[
-      {name:"Climantis", scheduleStr:"mon 11:30, thu 19:00"},
-      {name:"Saphirus", scheduleStr:"sun 17:00, tue 11:30"},
-      {name:"Neutro", scheduleStr:"tue 19:00, thu 11:30"},
-      {name:"Thymele", scheduleStr:"mon 19:00, wed 11:30"},
-      {name:"Milavy", scheduleStr:"sat 15:00"},
-      {name:"Ringor", scheduleStr:"sat 17:00"},
-      {name:"Roderick", scheduleStr:"fri 19:00"},
-      {name:"Auraq", scheduleStr:"sun 21:00, wed 21:00"},
-    ];
+function parseSchedule(s){
+  if(!s) return [];
+  return s.split(",").map(x=>x.trim()).filter(Boolean).map(p=>{
+    const m=p.match(/^([a-z]{3})\s+(\d{1,2}):(\d{2})(?:\s*(am|pm))?$/i);
+    if(!m) return null;
+    const day=DAY_MAP[m[1].toLowerCase()];
+    let h=parseInt(m[2],10), minute=parseInt(m[3],10);
+    const ap=(m[4]||"").toLowerCase();
+    if(ap==="pm"&&h!==12)h+=12; if(ap==="am"&&h===12)h=0;
+    if(day==null||h>23||minute>59) return null;
+    return {day,hour:h,minute};
+  }).filter(Boolean);
+}
 
-    function sLoad(){
-      const raw=localStorage.getItem(S_KEY);
-      if(!raw) return DEFAULT_SCHED.map(o=>({...o, schedule:parseSchedule(o.scheduleStr), next:null}));
-      try{
-        const arr=JSON.parse(raw);
-        return arr.map(o=>({...o, schedule:parseSchedule(o.scheduleStr)}));
-      }catch{return []}
-    }
+function nextFromSchedule(list, now=new Date()){
+  if(!list.length) return null;
+  let best=null;
+  for(const e of list){
+    const cand=new Date(now);
+    cand.setHours(e.hour,e.minute,0,0);
+    const diff=(e.day-now.getDay()+7)%7;
+    cand.setDate(cand.getDate()+diff);
+    if(cand<=now) cand.setDate(cand.getDate()+7);
+    if(!best || cand < best) best = cand;
+  }
+  return best;
+}
 
-  function sSave(){
+const DEFAULT_SCHED=[
+  {name:"Climantis", scheduleStr:"mon 11:30, thu 19:00"},
+  {name:"Saphirus",  scheduleStr:"sun 17:00, tue 11:30"},
+  {name:"Neutro",    scheduleStr:"tue 19:00, thu 11:30"},
+  {name:"Thymele",   scheduleStr:"mon 19:00, wed 11:30"},
+  {name:"Milavy",    scheduleStr:"sat 15:00"},
+  {name:"Ringor",    scheduleStr:"sat 17:00"},
+  {name:"Roderick",  scheduleStr:"fri 19:00"},
+  {name:"Auraq",     scheduleStr:"sun 21:00, wed 21:00"},
+];
+
+function sLoad(){
+  const raw=localStorage.getItem(S_KEY);
+  if(!raw) return DEFAULT_SCHED.map(o=>({...o, schedule:parseSchedule(o.scheduleStr), next:null}));
+  try{
+    const arr=JSON.parse(raw);
+    return arr.map(o=>({...o, schedule:parseSchedule(o.scheduleStr)}));
+  }catch{return []}
+}
+
+function sSave(){
   const payload = S_STATE.map(({name,scheduleStr,nextOverride})=>({name,scheduleStr,nextOverride}));
   localStorage.setItem(S_KEY, JSON.stringify(payload));
 
-  // ✅ don't write back while applying remote updates
   if (APPLYING_REMOTE) return;
-
-  // ✅ prevents a new viewer from overwriting Firebase with defaults
   if (!HAS_REMOTE_STATE) return;
 
   window.__FB__?.fbSaveState?.({ scheduled: payload }).catch(console.warn);
 }
 
+let S_STATE = sLoad();
 
-    let S_STATE = sLoad();
-    const sGrid = document.getElementById("sched-grid");
+const sGrid = document.getElementById("sched-grid");
+function nextFor(i, now=new Date()){
+  const n = S_STATE[i].nextOverride ? new Date(S_STATE[i].nextOverride) : nextFromSchedule(S_STATE[i].schedule, now);
+  return n;
+}
 
-    function nextFor(i, now=new Date()){
-      return S_STATE[i].nextOverride ? new Date(S_STATE[i].nextOverride) : nextFromSchedule(S_STATE[i].schedule, now);
+function sSetNext(i){
+  const card = document.querySelector(`[data-scard="${i}"]`);
+  const t = card.querySelector('[data-stime]').value;
+  const d = card.querySelector('[data-sdate]').value;
+  if(!t || !d) return alert("Pick both time and date.");
+  const dt = new Date(`${d}T${t}`);
+  if(isNaN(dt)) return alert("Invalid time/date.");
+  S_STATE[i].nextOverride = dt.toISOString();
+  sSave(); sRender();
+}
+
+function sCardHTML(it,i){
+  const nxt = nextFor(i, new Date()) || new Date(Date.now()+3600*1000);
+  const left = nxt - new Date();
+  return `
+    <div class="card" data-scard="${i}">
+      <h3 class="title">${it.name}</h3>
+      <div class="time" data-si="${i}">${fmtHMS(left)}</div>
+      <div class="next">NEXT: <strong>${fmtTime(nxt)}</strong></div>
+
+      <div class="row">
+        <input class="pill" type="time" data-stime />
+        <input class="pill" type="date" data-sdate />
+      </div>
+
+      <div class="row" style="gap:8px;">
+        <button class="btn-gold" onclick="sSetNext(${i})">Set Next Spawn</button>
+      </div>
+
+      <div class="muted" style="margin-top:10px">Schedule: ${it.scheduleStr}</div>
+    </div>
+  `;
+}
+function sRender(){ sGrid.innerHTML = S_STATE.map(sCardHTML).join(""); }
+sRender();
+
+setInterval(()=>{
+  const now = new Date();
+  document.querySelectorAll('[data-si]').forEach(el=>{
+    const i = +el.dataset.si;
+    const nxt = nextFor(i, now) || new Date(now.getTime()+3600*1000);
+    const delta = nxt - now;
+    el.textContent = fmtHMS(delta);
+    const card = el.closest('.card');
+    if(card){
+      if(delta <= 3600000) card.classList.add('lowtime'); else card.classList.remove('lowtime');
+      if(delta <= 1800000) card.classList.add('urgent'); else card.classList.remove('urgent');
+      const nextEl = card.querySelector('.next strong');
+      if(nextEl) nextEl.textContent = fmtTime(nxt);
     }
+  });
+},1000);
 
-    let _sLastOrder = "";
+/* ===================== Scheduled Add Button ===================== */
+document.getElementById("s-add").addEventListener("click", () => {
+  const name = document.getElementById("s-name").value.trim();
+  const scheduleStr = document.getElementById("s-sched").value.trim();
+  if(!name) return alert("Enter a boss name.");
+  const schedule = parseSchedule(scheduleStr);
+  if(!schedule.length) return alert("Invalid schedule. Example: mon 12:30, tue 19:00");
 
-    function sSetNext(i){
-      const card = document.querySelector(`[data-scard="${i}"]`);
-      const t = card.querySelector('[data-stime]').value;
-      const d = card.querySelector('[data-sdate]').value;
-      if(!t || !d) return alert("Pick both time and date.");
-      const dt = new Date(`${d}T${t}`);
-      if(isNaN(dt)) return alert("Invalid time/date.");
-      S_STATE[i].nextOverride = dt.toISOString();
-      sSave();
-      sRender();
-    }
+  S_STATE.push({ name, scheduleStr, schedule, nextOverride: null });
 
-    function sCardHTML(it,i){
-      const nxt = nextFor(i, new Date()) || new Date(Date.now()+3600*1000);
-      const left = nxt - new Date();
-      return `
-        <div class="card" data-scard="${i}">
-          <h3 class="title">${it.name}</h3>
-          <div class="time" data-si="${i}">${fmtHMS(left)}</div>
-          <div class="next">NEXT: <strong>${fmtTime(nxt)}</strong></div>
+  document.getElementById("s-name").value = "";
+  document.getElementById("s-sched").value = "";
 
-          <div class="row">
-            <input class="pill" type="time" data-stime />
-            <input class="pill" type="date" data-sdate />
-          </div>
+  sSave();
+  sRender();
+});
 
-          <div class="row" style="gap:8px;">
-            <button class="btn-gold" onclick="sSetNext(${i})">Set Next Spawn</button>
-          </div>
-
-          <div class="muted" style="margin-top:10px">Schedule: ${it.scheduleStr}</div>
-        </div>
-      `;
-    }
-
-    function sRender(){
-      sGrid.innerHTML = S_STATE.map(sCardHTML).join("");
-    }
-    sRender();
-
-    function sAutoSort(){
-      const now = new Date();
-      const cards = Array.from(sGrid.children);
-      const sorted = cards
-        .map(card => {
-          const i = +card.dataset.scard;
-          const nxt = nextFor(i, now) || new Date(now.getTime() + 3600000);
-          return { card, left: nxt - now };
-        })
-        .sort((a,b) => a.left - b.left)
-        .map(x => x.card);
-
-      const orderKey = sorted.map(c => c.dataset.scard).join(",");
-      if(orderKey === _sLastOrder) return;
-      _sLastOrder = orderKey;
-      reorderChildrenByKey(sGrid, sorted);
-    }
-
-    /* ====================== Sort Toggle ====================== */
-    let SORT_ENABLED = true;
-    const sortBtn = document.getElementById("sort-toggle");
-    function updateSortBtn(){
-      sortBtn.textContent = `Sort: ${SORT_ENABLED ? "ON" : "OFF"}`;
-    }
-    sortBtn.addEventListener("click", () => {
-      SORT_ENABLED = !SORT_ENABLED;
-      updateSortBtn();
-      if(SORT_ENABLED){
-        mAutoSort();
-        sAutoSort();
-      }
-    });
-    updateSortBtn();
-
-    /* ====================== Add Buttons (Manual / Scheduled) ====================== */
-    document.getElementById("m-add").addEventListener("click", () => {
-      const name = document.getElementById("m-name").value.trim();
-      const hours = parseFloat(document.getElementById("m-hours").value);
-      if(!name) return alert("Enter a boss name.");
-      if(!hours || hours <= 0) return alert("Enter hours > 0.");
-
-      const now = Date.now();
-      M_STATE.push({ name, hours, end: now + hours*3600*1000, last: new Date().toLocaleString() });
-      document.getElementById("m-name").value = "";
-      document.getElementById("m-hours").value = "";
-      mSave();
-      mRender();
-      if(SORT_ENABLED) mAutoSort();
-    });
-
-    document.getElementById("s-add").addEventListener("click", () => {
-      const name = document.getElementById("s-name").value.trim();
-      const scheduleStr = document.getElementById("s-sched").value.trim();
-      if(!name) return alert("Enter a boss name.");
-      const schedule = parseSchedule(scheduleStr);
-      if(!schedule.length) return alert("Invalid schedule. Example: mon 12:30, tue 19:00");
-
-      S_STATE.push({ name, scheduleStr, schedule, nextOverride: null });
-      document.getElementById("s-name").value = "";
-      document.getElementById("s-sched").value = "";
-      sSave();
-      sRender();
-      if(SORT_ENABLED) sAutoSort();
-    });
-
-    /* ====================== Live tick + alerts + auto-sort ====================== */
-    setInterval(()=>{
-      const now = Date.now();
-      document.querySelectorAll('[data-mi]').forEach(el=>{
-        const i = +el.dataset.mi;
-        const left = M_STATE[i].end - now;
-        el.textContent = fmtHMS(left);
-
-        const card = el.closest('.card');
-        if(left <= 3600000) card.classList.add('lowtime'); else card.classList.remove('lowtime');
-        if(left <= 1800000) card.classList.add('urgent'); else card.classList.remove('urgent');
-
-        const nextEl = card.querySelector('.next strong');
-        if(nextEl) nextEl.textContent = fmtRespawn(M_STATE[i].end);
-      });
-
-      if (SORT_ENABLED) mAutoSort();
-    },1000);
-
-    setInterval(()=>{
-      const now = new Date();
-      document.querySelectorAll('[data-si]').forEach(el=>{
-        const i = +el.dataset.si;
-        const nxt = nextFor(i, now) || new Date(now.getTime()+3600*1000);
-        const delta = nxt - now;
-
-        el.textContent = fmtHMS(delta);
-
-        const card = el.closest('.card');
-        if(card){
-          if(delta <= 3600000) card.classList.add('lowtime'); else card.classList.remove('lowtime');
-          if(delta <= 1800000) card.classList.add('urgent'); else card.classList.remove('urgent');
-
-          const nextEl = card.querySelector('.next strong');
-          if(nextEl) nextEl.textContent = fmtTime(nxt);
-        }
-      });
-
-      if (SORT_ENABLED) sAutoSort();
-    },1000);
-
-    /* =========================================================
-       ✅ FIREBASE: Load from Firestore on startup (overrides localStorage)
-       ========================================================= */
-   (() => {
+/* =========================================================
+   ✅ FIREBASE: Load on startup + realtime updates
+   ========================================================= */
+(function firebaseSyncStart(){
   function applyRemote(remote){
     if(!remote) return;
 
     APPLYING_REMOTE = true;
     HAS_REMOTE_STATE = true;
 
-    // Manual: full array
-    if(Array.isArray(remote.manual)) {
+    if (Array.isArray(remote.manual)) {
       M_STATE = remote.manual;
       mRender();
     }
 
-    // Scheduled: payload -> rebuild parsed schedule
-    if(Array.isArray(remote.scheduled)) {
+    if (Array.isArray(remote.scheduled)) {
       S_STATE = remote.scheduled.map(o => ({
         ...o,
         schedule: parseSchedule(o.scheduleStr || "")
@@ -660,43 +492,36 @@ function mLoad(){
       sRender();
     }
 
-    if(SORT_ENABLED){ mAutoSort(); sAutoSort(); }
-
     APPLYING_REMOTE = false;
   }
 
   (async () => {
-  try {
-    const remote = await window.__FB__?.fbLoadState?.();
+    try {
+      // 1) Load remote once
+      const remote = await window.__FB__?.fbLoadState?.();
 
-    if (remote && (remote.manual || remote.scheduled)) {
-      // Firebase already has data → use it
-      applyRemote(remote);
-      HAS_REMOTE_STATE = true;
-    } else {
-      // Firebase empty → initialize ONCE
-      const initial = {
-        manual: M_STATE,
-        scheduled: S_STATE.map(({name,scheduleStr,nextOverride})=>({name,scheduleStr,nextOverride}))
-      };
+      if(remote && (remote.manual || remote.scheduled)){
+        applyRemote(remote);
+      } else {
+        // 2) If Firebase empty, initialize it ONCE with your current defaults/local state
+        const initial = {
+          manual: M_STATE,
+          scheduled: S_STATE.map(({name,scheduleStr,nextOverride})=>({name,scheduleStr,nextOverride}))
+        };
+        await window.__FB__?.fbInitIfMissing?.(initial);
+        HAS_REMOTE_STATE = true;
+      }
 
-      await window.__FB__?.fbInitIfMissing?.(initial);
-      HAS_REMOTE_STATE = true;
+      // 3) Realtime listener so everyone sees updates instantly
+      window.__FB__?.fbListenState?.((live) => {
+        applyRemote(live);
+      });
+    } catch (e) {
+      console.warn("Firebase sync failed, using localStorage only.", e);
     }
-
-    // Realtime sync
-    window.__FB__?.fbListenState?.((live) => {
-      applyRemote(live);
-    });
-
-  } catch (e) {
-    console.warn("Firebase unavailable, using localStorage only.", e);
-  }
+  })();
 })();
+</script>
 
-})();
-
-
-  </script>
 </body>
 </html>
