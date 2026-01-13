@@ -294,14 +294,23 @@ let HAS_REMOTE_STATE = false;
       ["Titore",37],["Larba",35],["Catena",35]
     ];
 
-    function mLoad(){
-      const raw = localStorage.getItem(M_KEY);
-      if(!raw){
-        const now = Date.now();
-        return DEFAULT_MANUAL.map(([name,h])=>({name,hours:h,end:now+h*3600*1000,last:"—"}));
-      }
-      try { return JSON.parse(raw); } catch { return []; }
-    }
+  const INIT_KEY = "boss_timer_initialized_v1";
+
+function mLoad(){
+  const raw = localStorage.getItem(M_KEY);
+  if(raw){
+    try { return JSON.parse(raw); } catch {}
+  }
+
+  // if we already initialized before but storage is gone, don't reset silently
+  if(localStorage.getItem(INIT_KEY) === "1"){
+    return []; // or show a message / require re-sync
+  }
+
+  localStorage.setItem(INIT_KEY, "1");
+  const now = Date.now();
+  return DEFAULT_MANUAL.map(([name,h])=>({name,hours:h,end:now+h*3600*1000,last:"—"}));
+}
 
   function mSave(){
   localStorage.setItem(M_KEY, JSON.stringify(M_STATE));
@@ -657,32 +666,34 @@ let HAS_REMOTE_STATE = false;
   }
 
   (async () => {
-    try {
-      // 1) Load remote once
-      const remote = await window.__FB__?.fbLoadState?.();
+  try {
+    const remote = await window.__FB__?.fbLoadState?.();
 
-      if(remote){
-        applyRemote(remote);
-      } else {
-        // 2) If Firebase empty, initialize it ONCE with your current defaults/local state
-        const initial = {
-          manual: M_STATE,
-          scheduled: S_STATE.map(({name,scheduleStr,nextOverride})=>({name,scheduleStr,nextOverride}))
-        };
-        await window.__FB__?.fbInitIfMissing?.(initial);
+    if (remote && (remote.manual || remote.scheduled)) {
+      // Firebase already has data → use it
+      applyRemote(remote);
+      HAS_REMOTE_STATE = true;
+    } else {
+      // Firebase empty → initialize ONCE
+      const initial = {
+        manual: M_STATE,
+        scheduled: S_STATE.map(({name,scheduleStr,nextOverride})=>({name,scheduleStr,nextOverride}))
+      };
 
-        // After init, mark remote exists so saves are allowed
-        HAS_REMOTE_STATE = true;
-      }
-
-      // 3) ✅ Realtime listener so everyone sees updates instantly
-      window.__FB__?.fbListenState?.((live) => {
-        applyRemote(live);
-      });
-    } catch (e) {
-      console.warn("Firebase sync failed, using localStorage.", e);
+      await window.__FB__?.fbInitIfMissing?.(initial);
+      HAS_REMOTE_STATE = true;
     }
-  })();
+
+    // Realtime sync
+    window.__FB__?.fbListenState?.((live) => {
+      applyRemote(live);
+    });
+
+  } catch (e) {
+    console.warn("Firebase unavailable, using localStorage only.", e);
+  }
+})();
+
 })();
 
 
